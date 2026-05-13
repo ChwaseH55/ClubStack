@@ -1,33 +1,40 @@
 # Tech Stack
 
-Decisions finalized based on GolfClubUCF reference implementation and ClubStack's multi-tenant SaaS requirements.
-
 ## Frontend
-- **React 18** — component model, hooks, Suspense for async data
-- **React Router v6** — client-side routing; nested routes per feature module
-- **Tailwind CSS** — utility-first CSS; org branding via CSS custom properties (`--org-primary`)
-- **React Context + useReducer** — auth state and org context; no Redux for MVP
-- **Vite** — dev server and bundler (replaces CRA)
+- **React 18** — component model, hooks
+- **Vite** — dev server and bundler
+- **Tailwind CSS** — utility-first CSS; org branding via `--org-primary` CSS custom property
+- **React Router v6** — client-side routing
+- **React Context + useReducer** — auth and org state
 
-## Backend
-- **Node.js + Express** — REST API server
-- **PostgreSQL** — relational DB; multi-tenant via `org_id` on all tables
-- **pg** — native Postgres driver (raw SQL, no ORM)
-- **bcrypt** — password hashing (cost factor 12)
-- **jsonwebtoken** — JWT auth (HS256, 7-day expiry)
-- **Socket.io** — realtime for chat feature
+## Backend — Supabase
+No custom API server. The React client talks directly to Supabase via `@supabase/supabase-js`.
 
-## Infrastructure (target)
-- Frontend: Vercel or Netlify
-- Backend + DB: Railway or Render
-- File storage: Cloudflare R2 or AWS S3
+| Supabase service | What it replaces |
+|---|---|
+| Postgres | database |
+| Auth | hand-rolled JWT + bcrypt |
+| Storage | S3 + Multer setup |
+| Realtime (Broadcast + Presence) | Socket.io |
+| Edge Functions | Express server for webhooks/custom logic |
 
-## Dev tooling
-- ESLint + Prettier
-- dotenv for environment config
-- nodemon for backend dev server
+**Row Level Security** enforces multi-tenant isolation at the database level.
+Two helper functions (`is_member`, `is_admin`) keep policy definitions readable.
 
-## Rationale
-GolfClubUCF proved out the React + Tailwind + Express + Postgres stack for a single-org club app.
-ClubStack extends that foundation with multi-tenancy (orgId isolation), feature toggling,
-org branding via CSS custom properties, and Socket.io for realtime chat.
+## Additional services
+- **Stripe** — payments and dues (via Edge Function webhook)
+- **Resend** — transactional email (event reminders, invite links)
+- **Sentry** — error tracking
+- **Mux or Cloudinary** — video hosting if video becomes a feature
+
+## Infrastructure
+- **Frontend**: Vercel (free tier)
+- **Backend**: Supabase (free tier → $25/month Pro)
+- **Migrations**: Supabase CLI — `supabase db push` applies versioned SQL files
+- **Local dev**: `supabase start` runs a full local Supabase stack via Docker
+- **Type generation**: `supabase gen types typescript` keeps DB types in sync with schema
+
+## Scaling path
+Supabase free → Pro ($25/month) → Team ($599/month) → self-hosted on your own infra.
+Since Supabase is open source and the database is standard Postgres, migrating off
+is possible without a full rewrite if needed.

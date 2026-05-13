@@ -1,35 +1,37 @@
-import { createContext, useContext, useReducer } from 'react';
+import { createContext, useContext, useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
 
 const AuthContext = createContext(null);
 
-function authReducer(state, action) {
-  switch (action.type) {
-    case 'LOGIN': return { user: action.payload.user, token: action.payload.token };
-    case 'LOGOUT': return { user: null, token: null };
-    default: return state;
-  }
-}
-
 export function AuthProvider({ children }) {
-  const [state, dispatch] = useReducer(authReducer, {
-    user: JSON.parse(localStorage.getItem('user')),
-    token: localStorage.getItem('token'),
-  });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const login = (user, token) => {
-    localStorage.setItem('user', JSON.stringify(user));
-    localStorage.setItem('token', token);
-    dispatch({ type: 'LOGIN', payload: { user, token } });
-  };
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
 
-  const logout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    dispatch({ type: 'LOGOUT' });
-  };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const login = (email, password) =>
+    supabase.auth.signInWithPassword({ email, password });
+
+  const register = (email, password, name) =>
+    supabase.auth.signUp({ email, password, options: { data: { name } } });
+
+  const logout = () => supabase.auth.signOut();
+
+  if (loading) return null;
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout }}>
+    <AuthContext.Provider value={{ user, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

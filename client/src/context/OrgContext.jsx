@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import api from '../api';
+import { supabase } from '../lib/supabase';
 
 const OrgContext = createContext(null);
 
@@ -10,11 +10,17 @@ export function OrgProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get(`/orgs/${orgId}`).then(res => {
-      setOrg(res.data);
-      const color = res.data.branding?.primaryColor ?? '#4f46e5';
-      document.documentElement.style.setProperty('--org-primary', color);
-    }).finally(() => setLoading(false));
+    supabase
+      .from('organizations')
+      .select('id, name, slug, branding, enabled_features')
+      .eq('id', orgId)
+      .single()
+      .then(({ data }) => {
+        setOrg(data);
+        const color = data?.branding?.primaryColor ?? '#4f46e5';
+        document.documentElement.style.setProperty('--org-primary', color);
+      })
+      .finally(() => setLoading(false));
   }, [orgId]);
 
   return (

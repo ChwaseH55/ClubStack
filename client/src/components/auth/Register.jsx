@@ -1,26 +1,21 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import api from '../../api';
 
 export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const { login } = useAuth();
+  const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async e => {
     e.preventDefault();
     setError('');
-    try {
-      const { data } = await api.post('/auth/register', { name, email, password });
-      login(data.user, data.token);
-      navigate('/setup');
-    } catch (err) {
-      setError(err.response?.data?.error ?? 'Registration failed');
-    }
+    const { error } = await register(email, password, name);
+    if (error) return setError(error.message);
+    navigate('/setup');
   };
 
   return (

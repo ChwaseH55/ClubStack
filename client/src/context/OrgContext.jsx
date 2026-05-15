@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 const OrgContext = createContext(null);
 
 export function OrgProvider({ children }) {
-  const { orgId } = useParams();
+  const { slug } = useParams();
   const [org, setOrg] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -13,7 +13,7 @@ export function OrgProvider({ children }) {
     supabase
       .from('organizations')
       .select('id, name, slug, branding, enabled_features')
-      .eq('id', orgId)
+      .eq('slug', slug)
       .single()
       .then(({ data }) => {
         setOrg(data);
@@ -21,7 +21,7 @@ export function OrgProvider({ children }) {
         document.documentElement.style.setProperty('--org-primary', color);
       })
       .finally(() => setLoading(false));
-  }, [orgId]);
+  }, [slug]);
 
   return (
     <OrgContext.Provider value={{ org, loading }}>

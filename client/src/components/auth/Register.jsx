@@ -3,6 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
+const FEATURE_BULLETS = [
+  'Set up your org in under two minutes',
+  'Invite members with a single link',
+  'Enable only the features you need',
+  'Custom branding at no extra cost',
+];
+
 export default function Register() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -23,80 +30,96 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen flex">
-      {/* Left branding panel */}
-      <div className="hidden lg:flex w-1/2 bg-indigo-950 flex-col justify-between p-12">
-        <Link to="/" className="font-bold text-xl text-white tracking-tight">
-          Club<span className="text-indigo-400">Stack</span>
-        </Link>
-        <div className="space-y-4">
-          <p className="text-3xl font-bold text-white leading-snug">
-            Your club deserves<br />better tooling.
-          </p>
-          <p className="text-indigo-300 text-sm leading-relaxed max-w-sm">
-            Set up your organization in minutes. Invite members, enable the features you need, and start managing — no spreadsheets required.
-          </p>
-        </div>
-        <p className="text-indigo-500 text-xs">© {new Date().getFullYear()} ClubStack</p>
-      </div>
+    <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4 lg:p-8">
+      <div className="w-full max-w-5xl flex bg-white rounded-2xl shadow-xl overflow-hidden min-h-[680px]">
 
-      {/* Right form panel */}
-      <div className="flex-1 flex flex-col justify-center px-8 py-12 bg-white">
-        <div className="w-full max-w-sm mx-auto space-y-7">
-          <div className="space-y-1">
-            <Link to="/" className="text-sm text-slate-400 hover:text-slate-600 transition-colors">
-              ← Back to home
-            </Link>
-            <h1 className="text-2xl font-bold text-slate-900 mt-4">Create account</h1>
-            <p className="text-sm text-slate-500">Get started — it's free.</p>
+        {/* Left branding panel */}
+        <div className="hidden lg:flex w-5/12 bg-indigo-950 flex-col justify-between p-10 xl:p-14">
+          <Link to="/" className="font-bold text-xl text-white tracking-tight">
+            Club<span className="text-indigo-400">Stack</span>
+          </Link>
+          <div className="space-y-8">
+            <div className="space-y-3">
+              <h2 className="text-3xl xl:text-4xl font-bold text-white leading-snug">
+                Your club deserves<br />better tooling.
+              </h2>
+              <p className="text-indigo-300 leading-relaxed">
+                Create your free account and have your organization up and running in minutes.
+              </p>
+            </div>
+            <ul className="space-y-3">
+              {FEATURE_BULLETS.map(b => (
+                <li key={b} className="flex items-start gap-3 text-sm text-indigo-200">
+                  <svg className="w-4 h-4 text-indigo-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                  </svg>
+                  {b}
+                </li>
+              ))}
+            </ul>
           </div>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Your name</label>
-              <input
-                type="text"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                required
-                placeholder="Jane Smith"
-                className="input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
-                className="input"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium text-slate-700">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="input"
-              />
-            </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full py-3">
-              {loading ? 'Creating account…' : 'Create account'}
-            </button>
-          </form>
-
-          <p className="text-sm text-center text-slate-500">
-            Already have an account?{' '}
-            <Link to="/login" className="text-indigo-600 font-medium hover:underline">
-              Sign in
-            </Link>
-          </p>
+          <p className="text-indigo-600 text-xs">© {new Date().getFullYear()} ClubStack</p>
         </div>
+
+        {/* Right form panel */}
+        <div className="flex-1 flex flex-col justify-center px-8 py-12 xl:px-14">
+          <div className="w-full max-w-sm mx-auto space-y-7">
+            <div className="space-y-2">
+              <Link to="/" className="text-sm text-slate-400 hover:text-slate-600 transition-colors">
+                ← Back to home
+              </Link>
+              <h1 className="text-2xl font-bold text-slate-900 mt-3">Create account</h1>
+              <p className="text-sm text-slate-500">Free to start. No credit card required.</p>
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Your name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  required
+                  placeholder="Jane Smith"
+                  className="input"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  placeholder="you@example.com"
+                  className="input"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium text-slate-700">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  placeholder="••••••••"
+                  className="input"
+                />
+              </div>
+              <button type="submit" disabled={loading} className="btn-primary w-full py-2.5 mt-1">
+                {loading ? 'Creating account…' : 'Create account'}
+              </button>
+            </form>
+
+            <p className="text-sm text-center text-slate-500">
+              Already have an account?{' '}
+              <Link to="/login" className="text-indigo-600 font-medium hover:underline">
+                Sign in
+              </Link>
+            </p>
+          </div>
+        </div>
+
       </div>
     </div>
   );

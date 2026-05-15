@@ -58,9 +58,9 @@ const FEATURES = [
 ];
 
 const STEPS = [
-  { num: 1, title: 'Create your organization', body: 'Sign up, name your club, pick your features, and set your brand color in under two minutes.' },
-  { num: 2, title: 'Invite your members', body: 'Send invite links to members. They join your org directly — no separate account setup needed.' },
-  { num: 3, title: 'Start managing', body: 'Post announcements, schedule events, open the forum, and chat. Everything in one place.' },
+  { title: 'Create your organization', body: 'Sign up, name your club, pick your features, and set your brand color in under two minutes.' },
+  { title: 'Invite your members', body: 'Send invite links to members. They join your org directly — no separate account setup needed.' },
+  { title: 'Start managing', body: 'Post announcements, schedule events, open the forum, and chat. Everything in one place.' },
 ];
 
 const UPDATES = [
@@ -158,20 +158,16 @@ function Features() {
   return (
     <section className="py-24 bg-white">
       <div className="w-full px-8 xl:px-16 max-w-screen-xl mx-auto space-y-14">
-        <div className="text-center space-y-3">
-          <p className="section-label">What's included</p>
-          <h2 className="text-4xl font-bold text-slate-900">Everything a club needs</h2>
-          <p className="text-lg text-slate-500 max-w-xl mx-auto">
-            Pick the modules that fit your club. Each one is purpose-built, not bolted on.
-          </p>
-        </div>
+        <h2 className="text-4xl font-bold text-slate-900">Everything a club needs</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {FEATURES.map(f => (
-            <div key={f.title} className="card p-7 space-y-4 hover:shadow-md transition-shadow">
-              <div className="w-10 h-10 rounded-lg bg-indigo-600 flex items-center justify-center text-white">
-                {f.icon}
+            <div key={f.title} className="card p-7 space-y-3 hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center text-white shrink-0">
+                  {f.icon}
+                </div>
+                <h3 className="font-semibold text-lg text-slate-900">{f.title}</h3>
               </div>
-              <h3 className="font-semibold text-lg text-slate-900">{f.title}</h3>
               <p className="text-slate-500 leading-relaxed">{f.description}</p>
             </div>
           ))}
@@ -183,21 +179,24 @@ function Features() {
 
 function HowItWorks() {
   return (
-    <section className="py-24 bg-slate-950 text-white">
+    <section className="py-24 bg-indigo-950 text-white">
       <div className="w-full px-8 xl:px-16 max-w-screen-xl mx-auto space-y-14">
-        <div className="text-center space-y-3">
-          <p className="section-label text-slate-500">Getting started</p>
-          <h2 className="text-4xl font-bold">Up and running in minutes</h2>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
-          {STEPS.map(s => (
-            <div key={s.num} className="space-y-5">
-              <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center text-white font-bold text-lg">
-                {s.num}
+        <h2 className="text-4xl font-bold">Up and running in minutes</h2>
+        <div className="flex flex-col md:flex-row items-start gap-6">
+          {STEPS.map((s, i) => (
+            <>
+              <div key={s.title} className="flex-1 space-y-3">
+                <h3 className="font-semibold text-xl text-white">{s.title}</h3>
+                <p className="text-indigo-300 leading-relaxed">{s.body}</p>
               </div>
-              <h3 className="font-semibold text-xl text-white">{s.title}</h3>
-              <p className="text-slate-400 leading-relaxed">{s.body}</p>
-            </div>
+              {i < STEPS.length - 1 && (
+                <div key={`div-${i}`} className="self-center shrink-0 rotate-90 md:rotate-0 text-indigo-600">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                  </svg>
+                </div>
+              )}
+            </>
           ))}
         </div>
       </div>
@@ -209,10 +208,7 @@ function Updates() {
   return (
     <section id="updates" className="py-24 bg-white">
       <div className="w-full px-8 xl:px-16 max-w-screen-lg mx-auto space-y-12">
-        <div className="space-y-3">
-          <p className="section-label">Changelog</p>
-          <h2 className="text-4xl font-bold text-slate-900">Updates & news</h2>
-        </div>
+        <h2 className="text-4xl font-bold text-slate-900">Updates & news</h2>
         <div className="divide-y divide-slate-100">
           {UPDATES.map(u => (
             <div key={u.title} className="py-8 flex gap-8">
@@ -238,7 +234,6 @@ function Contact() {
   return (
     <section id="contact" className="py-24 bg-indigo-950 text-white">
       <div className="w-full px-8 xl:px-16 max-w-3xl mx-auto text-center space-y-6">
-        <p className="section-label text-indigo-500">Get in touch</p>
         <h2 className="text-4xl font-bold">Have questions?</h2>
         <p className="text-lg text-indigo-300 leading-relaxed">
           We're actively building ClubStack. If you have feedback, feature requests, or just want to talk, reach out directly.

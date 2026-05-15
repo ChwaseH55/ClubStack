@@ -1,5 +1,3 @@
-create extension if not exists "uuid-ossp";
-
 -- Profile row created automatically on signup (see trigger below)
 create table public.profiles (
   id         uuid references auth.users(id) on delete cascade primary key,
@@ -26,7 +24,7 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 create table public.organizations (
-  id               uuid primary key default uuid_generate_v4(),
+  id               uuid primary key default gen_random_uuid(),
   name             text not null,
   slug             text unique not null,
   branding         jsonb default '{}',
@@ -35,7 +33,7 @@ create table public.organizations (
 );
 
 create table public.memberships (
-  id        uuid primary key default uuid_generate_v4(),
+  id        uuid primary key default gen_random_uuid(),
   org_id    uuid not null references public.organizations(id) on delete cascade,
   user_id   uuid not null references auth.users(id) on delete cascade,
   role      text not null check (role in ('owner', 'admin', 'member')),
@@ -45,7 +43,7 @@ create table public.memberships (
 );
 
 create table public.announcements (
-  id         uuid primary key default uuid_generate_v4(),
+  id         uuid primary key default gen_random_uuid(),
   org_id     uuid not null references public.organizations(id) on delete cascade,
   title      text not null,
   body       text not null,
@@ -55,7 +53,7 @@ create table public.announcements (
 );
 
 create table public.events (
-  id          uuid primary key default uuid_generate_v4(),
+  id          uuid primary key default gen_random_uuid(),
   org_id      uuid not null references public.organizations(id) on delete cascade,
   title       text not null,
   description text,
@@ -67,7 +65,7 @@ create table public.events (
 );
 
 create table public.event_registrations (
-  id       uuid primary key default uuid_generate_v4(),
+  id       uuid primary key default gen_random_uuid(),
   org_id   uuid not null references public.organizations(id) on delete cascade,
   event_id uuid not null references public.events(id) on delete cascade,
   user_id  uuid not null references auth.users(id),
@@ -76,7 +74,7 @@ create table public.event_registrations (
 );
 
 create table public.forum_posts (
-  id         uuid primary key default uuid_generate_v4(),
+  id         uuid primary key default gen_random_uuid(),
   org_id     uuid not null references public.organizations(id) on delete cascade,
   title      text not null,
   body       text not null,
@@ -86,7 +84,7 @@ create table public.forum_posts (
 );
 
 create table public.forum_comments (
-  id         uuid primary key default uuid_generate_v4(),
+  id         uuid primary key default gen_random_uuid(),
   org_id     uuid not null references public.organizations(id) on delete cascade,
   post_id    uuid not null references public.forum_posts(id) on delete cascade,
   author_id  uuid not null references auth.users(id),
@@ -95,13 +93,13 @@ create table public.forum_comments (
 );
 
 create table public.chat_rooms (
-  id     uuid primary key default uuid_generate_v4(),
+  id     uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.organizations(id) on delete cascade,
   name   text not null
 );
 
 create table public.chat_messages (
-  id         uuid primary key default uuid_generate_v4(),
+  id         uuid primary key default gen_random_uuid(),
   org_id     uuid not null references public.organizations(id) on delete cascade,
   room_id    uuid not null references public.chat_rooms(id) on delete cascade,
   author_id  uuid not null references auth.users(id),
@@ -110,7 +108,7 @@ create table public.chat_messages (
 );
 
 create table public.shop_items (
-  id          uuid primary key default uuid_generate_v4(),
+  id          uuid primary key default gen_random_uuid(),
   org_id      uuid not null references public.organizations(id) on delete cascade,
   name        text not null,
   description text,
@@ -121,7 +119,7 @@ create table public.shop_items (
 );
 
 create table public.orders (
-  id         uuid primary key default uuid_generate_v4(),
+  id         uuid primary key default gen_random_uuid(),
   org_id     uuid not null references public.organizations(id) on delete cascade,
   user_id    uuid not null references auth.users(id),
   total      numeric(10,2) not null,
@@ -130,7 +128,7 @@ create table public.orders (
 );
 
 create table public.order_items (
-  id                uuid primary key default uuid_generate_v4(),
+  id                uuid primary key default gen_random_uuid(),
   order_id          uuid not null references public.orders(id) on delete cascade,
   item_id           uuid not null references public.shop_items(id),
   quantity          integer not null default 1,
@@ -138,9 +136,10 @@ create table public.order_items (
 );
 
 create table public.dues_plans (
-  id     uuid primary key default uuid_generate_v4(),
+  id     uuid primary key default gen_random_uuid(),
   org_id uuid not null references public.organizations(id) on delete cascade,
   name   text not null,
   price  numeric(10,2) not null,
   active boolean default true
 );
+

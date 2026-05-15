@@ -90,7 +90,7 @@ export default function CreateOrg() {
     }
 
     addToast(`${name} created!`, 'success');
-    navigate(`/orgs/${org.slug}`);
+    navigate(`/orgs/${slug}`);
   };
 
   return (

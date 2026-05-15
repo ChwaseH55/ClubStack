@@ -8,6 +8,7 @@ import Register from './components/auth/Register';
 import Home from './pages/Home';
 import CreateOrg from './pages/CreateOrg';
 import Landing from './pages/Landing';
+import Profile from './pages/Profile';
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -29,6 +30,7 @@ export default function App() {
           <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
           <Route path="/home" element={<PrivateRoute><Home /></PrivateRoute>} />
           <Route path="/create-org" element={<PrivateRoute><CreateOrg /></PrivateRoute>} />
+          <Route path="/profile" element={<PrivateRoute><Profile /></PrivateRoute>} />
           <Route
             path="/orgs/:slug/*"
             element={

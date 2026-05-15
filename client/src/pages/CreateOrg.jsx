@@ -63,11 +63,11 @@ export default function CreateOrg() {
 
     setLoading(true);
 
-    const { data: org, error: orgError } = await supabase
+    const orgId = crypto.randomUUID();
+
+    const { error: orgError } = await supabase
       .from('organizations')
-      .insert({ name, slug, branding: { primaryColor: color }, enabled_features: features })
-      .select('id, slug')
-      .single();
+      .insert({ id: orgId, name, slug, branding: { primaryColor: color }, enabled_features: features });
 
     if (orgError) {
       setLoading(false);
@@ -81,7 +81,7 @@ export default function CreateOrg() {
 
     const { error: memberError } = await supabase
       .from('memberships')
-      .insert({ org_id: org.id, user_id: user.id, role: 'owner', status: 'active' });
+      .insert({ org_id: orgId, user_id: user.id, role: 'owner', status: 'active' });
 
     if (memberError) {
       addToast(memberError.message, 'error');

@@ -21,7 +21,7 @@ create policy "co-members read profiles"
       select 1 from public.memberships m1
       join public.memberships m2 on m1.org_id = m2.org_id
       where m1.user_id = auth.uid()
-        and m2.user_id = id
+        and m2.user_id = profiles.id
         and m1.status = 'active'
         and m2.status = 'active'
     )

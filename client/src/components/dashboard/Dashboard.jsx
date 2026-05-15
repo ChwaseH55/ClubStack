@@ -17,7 +17,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
-      <Sidebar enabledFeatures={org?.enabledFeatures ?? []} />
+      <Sidebar enabledFeatures={org?.enabled_features ?? []} />
       <div className="flex flex-col flex-1 overflow-hidden">
         <TopBar org={org} />
         <main className="flex-1 overflow-y-auto p-6">

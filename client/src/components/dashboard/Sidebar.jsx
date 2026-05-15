@@ -17,7 +17,7 @@ const linkClass = ({ isActive }) =>
   }`;
 
 export default function Sidebar({ enabledFeatures }) {
-  const { orgId } = useParams();
+  const { slug } = useParams();
   const { logout } = useAuth();
   const navItems = FEATURE_NAV.filter(f => enabledFeatures.includes(f.key));
 
@@ -27,11 +27,11 @@ export default function Sidebar({ enabledFeatures }) {
         <span className="text-white font-bold text-lg">ClubStack</span>
       </div>
       <nav className="flex-1 py-4 space-y-1 px-2">
-        <NavLink to={`/orgs/${orgId}`} end className={linkClass}>
+        <NavLink to={`/orgs/${slug}`} end className={linkClass}>
           🏠 Home
         </NavLink>
         {navItems.map(item => (
-          <NavLink key={item.key} to={`/orgs/${orgId}/${item.path}`} className={linkClass}>
+          <NavLink key={item.key} to={`/orgs/${slug}/${item.path}`} className={linkClass}>
             {item.icon} {item.label}
           </NavLink>
         ))}

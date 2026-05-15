@@ -32,7 +32,7 @@ function AnnouncementsList() {
   }, [org]);
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="w-full max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Announcements</h1>
         {isAdmin && (
@@ -110,7 +110,7 @@ function AnnouncementDetail() {
   const canEdit = isAdmin || post.author_id === user.id;
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="w-full max-w-4xl space-y-6">
       <div className="flex items-center gap-2 text-sm text-slate-400">
         <Link to=".." relative="path" className="hover:text-slate-600 transition-colors">Announcements</Link>
         <span>/</span>
@@ -201,7 +201,7 @@ function AnnouncementForm() {
   if (loading) return <div className="text-slate-400 text-sm">Loading…</div>;
 
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="w-full max-w-4xl space-y-6">
       <div className="flex items-center gap-2 text-sm text-slate-400">
         <Link to={isEdit ? '../..' : '..'} relative="path" className="hover:text-slate-600 transition-colors">Announcements</Link>
         <span>/</span>
@@ -245,5 +245,6 @@ function AnnouncementForm() {
 }
 
 function formatDate(str) {
+  if (!str) return '';
   return new Date(str).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }

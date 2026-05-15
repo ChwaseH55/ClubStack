@@ -24,52 +24,47 @@ export default function Home() {
 
   const handleLogout = async () => {
     await logout();
-    navigate('/login');
+    navigate('/');
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-100 px-6 py-4 flex items-center justify-between">
-        <span className="text-lg font-bold text-gray-900">ClubStack</span>
-        <div className="flex items-center gap-4">
-          <span className="text-sm text-gray-500">{user.email}</span>
-          <button
-            onClick={handleLogout}
-            className="text-sm text-gray-600 hover:text-gray-900 transition"
-          >
+    <div className="min-h-screen bg-slate-50">
+      <header className="bg-white border-b border-slate-100 px-6 h-14 flex items-center justify-between">
+        <span className="font-bold text-lg tracking-tight">
+          Club<span className="text-indigo-600">Stack</span>
+        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-slate-400 hidden sm:block">{user.email}</span>
+          <button onClick={handleLogout} className="btn-ghost text-slate-500">
             Sign out
           </button>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-10 space-y-10">
+      <main className="max-w-2xl mx-auto px-6 py-12 space-y-8">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-gray-900">Your organizations</h1>
-          <Link
-            to="/create-org"
-            className="text-sm bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition"
-          >
-            + New organization
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Your organizations</h1>
+            <p className="text-sm text-slate-400 mt-0.5">Select an org to open its dashboard.</p>
+          </div>
+          <Link to="/create-org" className="btn-primary">
+            + New org
           </Link>
         </div>
 
         {loading ? (
           <div className="space-y-3">
             {[1, 2].map(i => (
-              <div key={i} className="h-20 bg-gray-100 rounded-xl animate-pulse" />
+              <div key={i} className="h-[72px] bg-slate-100 rounded-xl animate-pulse" />
             ))}
           </div>
         ) : memberships.length === 0 ? (
           <EmptyState />
         ) : (
-          <>
-            {adminOrgs.length > 0 && (
-              <OrgSection title="Admin" orgs={adminOrgs} />
-            )}
-            {memberOrgs.length > 0 && (
-              <OrgSection title="Member" orgs={memberOrgs} />
-            )}
-          </>
+          <div className="space-y-8">
+            {adminOrgs.length > 0 && <OrgSection title="Admin" orgs={adminOrgs} />}
+            {memberOrgs.length > 0 && <OrgSection title="Member" orgs={memberOrgs} />}
+          </div>
         )}
       </main>
     </div>
@@ -79,7 +74,7 @@ export default function Home() {
 function OrgSection({ title, orgs }) {
   return (
     <section className="space-y-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">{title}</h2>
+      <h2 className="section-label">{title}</h2>
       {orgs.map(({ role, organizations: org }) => (
         <OrgCard key={org.id} org={org} role={role} />
       ))}
@@ -92,7 +87,7 @@ function OrgCard({ org, role }) {
   return (
     <Link
       to={`/orgs/${org.slug}`}
-      className="flex items-center gap-4 bg-white border border-gray-100 rounded-xl px-5 py-4 shadow-sm hover:shadow-md transition group"
+      className="card flex items-center gap-4 px-5 py-4 hover:shadow-md transition-shadow group"
     >
       <div
         className="w-10 h-10 rounded-lg shrink-0 flex items-center justify-center text-white font-bold text-sm"
@@ -101,11 +96,11 @@ function OrgCard({ org, role }) {
         {org.name.charAt(0).toUpperCase()}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-gray-900 truncate group-hover:text-indigo-600 transition">{org.name}</p>
-        <p className="text-xs text-gray-400">/{org.slug}</p>
+        <p className="font-semibold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">{org.name}</p>
+        <p className="text-xs text-slate-400">/{org.slug}</p>
       </div>
-      <span className="text-xs text-gray-400 capitalize shrink-0">{role}</span>
-      <svg className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <span className="text-xs text-slate-400 capitalize shrink-0 hidden sm:block">{role}</span>
+      <svg className="w-4 h-4 text-slate-300 group-hover:text-indigo-400 transition-colors shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
       </svg>
     </Link>
@@ -114,12 +109,9 @@ function OrgCard({ org, role }) {
 
 function EmptyState() {
   return (
-    <div className="text-center py-16 space-y-4">
-      <p className="text-gray-400 text-sm">You're not in any organizations yet.</p>
-      <Link
-        to="/create-org"
-        className="inline-block text-sm bg-indigo-600 text-white px-5 py-2.5 rounded-lg hover:bg-indigo-700 transition"
-      >
+    <div className="card px-8 py-16 text-center space-y-4">
+      <p className="text-slate-400 text-sm">You're not in any organizations yet.</p>
+      <Link to="/create-org" className="btn-primary">
         Create your first organization
       </Link>
     </div>

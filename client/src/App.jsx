@@ -7,6 +7,7 @@ import Login from './components/auth/Login';
 import Register from './components/auth/Register';
 import Home from './pages/Home';
 import CreateOrg from './pages/CreateOrg';
+import Landing from './pages/Landing';
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -23,6 +24,7 @@ export default function App() {
     <AuthProvider>
       <ToastProvider>
         <Routes>
+          <Route path="/" element={<GuestRoute><Landing /></GuestRoute>} />
           <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
           <Route path="/register" element={<GuestRoute><Register /></GuestRoute>} />
           <Route path="/home" element={<PrivateRoute><Home /></PrivateRoute>} />
@@ -37,7 +39,7 @@ export default function App() {
               </PrivateRoute>
             }
           />
-          <Route path="*" element={<Navigate to="/home" replace />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ToastProvider>
     </AuthProvider>

@@ -109,7 +109,7 @@ export default function DashboardHome() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+      <h1 className="text-2xl font-bold text-slate-900 mb-6">
         Welcome to {org?.name}
       </h1>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">

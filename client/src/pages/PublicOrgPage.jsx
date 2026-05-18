@@ -42,7 +42,7 @@ export default function PublicOrgPage() {
 
       const { data: leaders } = await supabase
         .from('memberships')
-        .select('role, title, bio, profiles!user_id(id, name, avatar_url)')
+        .select('role, title, bio, profiles!memberships_user_profile_fk(id, name, avatar_url)')
         .eq('org_id', orgData.id)
         .eq('status', 'active')
         .not('title', 'is', null);

@@ -151,7 +151,8 @@ export default function DashboardHome() {
 }
 
 function OrgHero({ org, b, socialLinks, isAdmin, slug }) {
-  const color    = b.primaryColor ?? '#4f46e5';
+  const color     = b.primaryColor   ?? '#4f46e5';
+  const secondary = b.secondaryColor ?? '#6366f1';
   const hasSocial = socialLinks.instagram || socialLinks.twitter || socialLinks.tiktok || socialLinks.website;
 
   return (
@@ -165,7 +166,7 @@ function OrgHero({ org, b, socialLinks, isAdmin, slug }) {
         style={{
           background: b.bannerUrl
             ? 'linear-gradient(to right, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.35) 100%)'
-            : `linear-gradient(135deg, ${color}f0 0%, ${color}a0 100%)`,
+            : `linear-gradient(135deg, ${color}f0 0%, ${secondary}c0 100%)`,
         }}
       >
         {/* Logo */}

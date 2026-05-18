@@ -23,8 +23,10 @@ export function OrgProvider({ children }) {
       if (!orgData) { setLoading(false); return; }
 
       setOrg(orgData);
-      const color = orgData.branding?.primaryColor ?? '#4f46e5';
-      document.documentElement.style.setProperty('--org-primary', color);
+      const color     = orgData.branding?.primaryColor   ?? '#4f46e5';
+      const secondary = orgData.branding?.secondaryColor ?? '#6366f1';
+      document.documentElement.style.setProperty('--org-primary',   color);
+      document.documentElement.style.setProperty('--org-secondary', secondary);
 
       const { data: membership } = await supabase
         .from('memberships')

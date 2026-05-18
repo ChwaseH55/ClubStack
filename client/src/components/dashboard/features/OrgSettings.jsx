@@ -57,7 +57,8 @@ export default function OrgSettings() {
 
 function BrandingTab({ org, addToast, userId }) {
   const b = org?.branding ?? {};
-  const [color,   setColor]   = useState(b.primaryColor ?? '#4f46e5');
+  const [color,          setColor]          = useState(b.primaryColor   ?? '#4f46e5');
+  const [secondaryColor, setSecondaryColor] = useState(b.secondaryColor ?? '#6366f1');
   const [tagline, setTagline] = useState(b.tagline ?? '');
   const [about,   setAbout]   = useState(b.about ?? '');
   const [logoUrl,   setLogoUrl]   = useState(b.logoUrl ?? null);
@@ -112,11 +113,12 @@ function BrandingTab({ org, addToast, userId }) {
     setSaving(true);
     const { error } = await supabase
       .from('organizations')
-      .update({ branding: { ...org.branding, primaryColor: color, tagline, about, logoUrl, bannerUrl } })
+      .update({ branding: { ...org.branding, primaryColor: color, secondaryColor, tagline, about, logoUrl, bannerUrl } })
       .eq('id', org.id);
     setSaving(false);
     if (error) { addToast(error.message, 'error'); return; }
-    document.documentElement.style.setProperty('--org-primary', color);
+    document.documentElement.style.setProperty('--org-primary',   color);
+    document.documentElement.style.setProperty('--org-secondary', secondaryColor);
     addToast('Branding saved.', 'success');
   }
 
@@ -177,17 +179,33 @@ function BrandingTab({ org, addToast, userId }) {
           </div>
         </div>
 
-        {/* Color */}
-        <div className="space-y-1.5">
-          <label className="text-sm font-medium text-slate-700">Brand Color</label>
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              value={color}
-              onChange={e => setColor(e.target.value)}
-              className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white"
-            />
-            <span className="text-sm text-slate-500 font-mono">{color}</span>
+        {/* Colors */}
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700">Primary Color</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={color}
+                onChange={e => setColor(e.target.value)}
+                className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white"
+              />
+              <span className="text-sm text-slate-500 font-mono">{color}</span>
+            </div>
+            <p className="text-xs text-slate-400">Used for the sidebar and hero background.</p>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700">Secondary Color</label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={secondaryColor}
+                onChange={e => setSecondaryColor(e.target.value)}
+                className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white"
+              />
+              <span className="text-sm text-slate-500 font-mono">{secondaryColor}</span>
+            </div>
+            <p className="text-xs text-slate-400">Used for accents and highlights.</p>
           </div>
         </div>
       </div>

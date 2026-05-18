@@ -7,6 +7,7 @@ import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import DashboardHome from './DashboardHome';
 import Announcements from './features/Announcements';
+import OrgSettings from './features/OrgSettings';
 import ComingSoon from './features/ComingSoon';
 
 export default function Dashboard() {
@@ -40,6 +41,7 @@ export default function Dashboard() {
             <Route path="forum/*" element={<ComingSoon feature="Forum" />} />
             <Route path="chat/*" element={<ComingSoon feature="Chat" />} />
             <Route path="shop/*" element={<ComingSoon feature="Shop & Dues" />} />
+            <Route path="settings/*" element={<OrgSettings />} />
           </Routes>
         </main>
       </div>

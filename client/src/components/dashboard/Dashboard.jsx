@@ -7,6 +7,8 @@ import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 import DashboardHome from './DashboardHome';
 import Announcements from './features/Announcements';
+import Events from './features/Events';
+import Forum from './features/Forum';
 import OrgSettings from './features/OrgSettings';
 import ComingSoon from './features/ComingSoon';
 
@@ -37,8 +39,8 @@ export default function Dashboard() {
           <Routes>
             <Route index element={<DashboardHome />} />
             <Route path="announcements/*" element={<Announcements />} />
-            <Route path="events/*" element={<ComingSoon feature="Events" />} />
-            <Route path="forum/*" element={<ComingSoon feature="Forum" />} />
+            <Route path="events/*" element={<Events />} />
+            <Route path="forum/*" element={<Forum />} />
             <Route path="chat/*" element={<ComingSoon feature="Chat" />} />
             <Route path="shop/*" element={<ComingSoon feature="Shop & Dues" />} />
             <Route path="settings/*" element={<OrgSettings />} />

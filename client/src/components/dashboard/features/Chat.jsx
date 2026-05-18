@@ -6,12 +6,19 @@ import { useToast } from '../../../context/ToastContext';
 
 const MSG_SELECT = `
   id, content, media_url, media_type, created_at, author_id, reply_to_id,
-  profiles!chat_messages_author_profile_fk(name, avatar_url),
-  reply_to:chat_messages!chat_messages_reply_fk(
-    id, content, media_type, author_id,
-    profiles!chat_messages_author_profile_fk(name)
-  )
+  profiles!chat_messages_author_profile_fk(name, avatar_url)
 `.trim();
+
+// Attach reply_to objects by looking up reply_to_id within the loaded message list.
+// Falls back to a minimal stub for replies that fall outside the fetch window.
+function attachReplies(messages) {
+  const byId = Object.fromEntries(messages.map(m => [m.id, m]));
+  return messages.map(m => {
+    if (!m.reply_to_id) return m;
+    const parent = byId[m.reply_to_id];
+    return { ...m, reply_to: parent ?? { id: m.reply_to_id, content: null, media_type: null, profiles: null } };
+  });
+}
 
 export default function Chat() {
   const { org } = useOrg();
@@ -307,7 +314,7 @@ function MessagePane({ room, user, onNewMessage, onDeleteRoom }) {
       .order('created_at', { ascending: true })
       .limit(200)
       .then(({ data }) => {
-        setMessages(data ?? []);
+        setMessages(attachReplies(data ?? []));
         setLoading(false);
         setTimeout(() => scrollToBottom('instant'), 50);
       });
@@ -324,7 +331,11 @@ function MessagePane({ room, user, onNewMessage, onDeleteRoom }) {
             .eq('id', payload.new.id)
             .single();
           if (data) {
-            setMessages(prev => prev.some(m => m.id === data.id) ? prev : [...prev, data]);
+            setMessages(prev => {
+              if (prev.some(m => m.id === data.id)) return prev;
+              const next = [...prev, data];
+              return attachReplies(next);
+            });
             scrollToBottom();
             onNewMessage(room.id, { content: data.content, media_type: data.media_type, created_at: data.created_at });
           }

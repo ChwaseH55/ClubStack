@@ -9,6 +9,7 @@ import DashboardHome from './DashboardHome';
 import Announcements from './features/Announcements';
 import Events from './features/Events';
 import Forum from './features/Forum';
+import Chat from './features/Chat';
 import OrgSettings from './features/OrgSettings';
 import ComingSoon from './features/ComingSoon';
 
@@ -41,7 +42,7 @@ export default function Dashboard() {
             <Route path="announcements/*" element={<Announcements />} />
             <Route path="events/*" element={<Events />} />
             <Route path="forum/*" element={<Forum />} />
-            <Route path="chat/*" element={<ComingSoon feature="Chat" />} />
+            <Route path="chat/*" element={<Chat />} />
             <Route path="shop/*" element={<ComingSoon feature="Shop & Dues" />} />
             <Route path="settings/*" element={<OrgSettings />} />
           </Routes>

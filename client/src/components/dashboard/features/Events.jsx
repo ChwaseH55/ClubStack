@@ -42,10 +42,14 @@ function EventsList() {
     if (!org) return;
     supabase
       .from('events')
-      .select('id, title, description, start_at, end_at, max_capacity, profiles!author_id(name)')
+      .select('id, title, description, start_at, end_at, max_capacity, author_id')
       .eq('org_id', org.id)
       .order('start_at', { ascending: true })
-      .then(({ data }) => { setEvents(data ?? []); setLoading(false); });
+      .then(({ data, error }) => {
+        if (error) console.error('events fetch error', error);
+        setEvents(data ?? []);
+        setLoading(false);
+      });
   }, [org]);
 
   const year = calDate.getFullYear();
@@ -182,7 +186,6 @@ function EventCard({ event, past }) {
         <div className="flex items-center gap-3 text-xs text-slate-400">
           <span>{formatTime(event.start_at)}{event.end_at ? ` – ${formatTime(event.end_at)}` : ''}</span>
           {event.max_capacity && <span>· {event.max_capacity} capacity</span>}
-          {event.profiles?.name && <span>· by {event.profiles.name}</span>}
         </div>
         {event.description && (
           <p className="text-sm text-slate-500 truncate">{event.description}</p>
@@ -214,7 +217,7 @@ function EventDetail() {
   const fetchEvent = useCallback(async () => {
     const { data } = await supabase
       .from('events')
-      .select('id, title, description, start_at, end_at, max_capacity, author_id, profiles!author_id(name, avatar_url)')
+      .select('id, title, description, start_at, end_at, max_capacity, author_id, profiles!events_author_profile_fk(name, avatar_url)')
       .eq('id', id)
       .single();
     setEvent(data);

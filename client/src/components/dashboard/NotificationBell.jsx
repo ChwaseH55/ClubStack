@@ -61,6 +61,19 @@ export default function NotificationBell() {
     if (n.link) navigate(n.link);
   };
 
+  const handleDelete = async (e, id) => {
+    e.stopPropagation();
+    await supabase.from('notifications').delete().eq('id', id);
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  };
+
+  const handleClearRead = async () => {
+    await supabase.from('notifications').delete().eq('user_id', user.id).eq('read', true);
+    setNotifications(prev => prev.filter(n => !n.read));
+  };
+
+  const readCount = notifications.filter(n => n.read).length;
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -81,11 +94,18 @@ export default function NotificationBell() {
         <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <h3 className="font-semibold text-slate-900 text-sm">Notifications</h3>
-            {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-xs text-indigo-600 hover:underline">
-                Mark all read
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <button onClick={markAllRead} className="text-xs text-indigo-600 hover:underline">
+                  Mark all read
+                </button>
+              )}
+              {readCount > 0 && (
+                <button onClick={handleClearRead} className="text-xs text-slate-400 hover:text-red-500 hover:underline transition-colors">
+                  Clear read
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="max-h-96 overflow-y-auto">
@@ -95,27 +115,37 @@ export default function NotificationBell() {
               </div>
             ) : (
               notifications.map(n => (
-                <button
-                  key={n.id}
-                  onClick={() => handleClick(n)}
-                  className={`w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors flex gap-3 items-start ${
-                    !n.read ? 'bg-indigo-50/50' : ''
-                  }`}
-                >
-                  <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${!n.read ? 'bg-indigo-500' : 'bg-transparent'}`} />
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className={`text-sm leading-snug ${!n.read ? 'font-semibold text-slate-900' : 'font-medium text-slate-700'}`}>
-                        {n.title}
-                      </p>
-                      <span className="text-xs text-slate-400 shrink-0">{relativeTime(n.created_at)}</span>
+                <div key={n.id} className="relative group">
+                  <button
+                    onClick={() => handleClick(n)}
+                    className={`w-full text-left px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors flex gap-3 items-start pr-8 ${
+                      !n.read ? 'bg-indigo-50/50' : ''
+                    }`}
+                  >
+                    <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${!n.read ? 'bg-indigo-500' : 'bg-transparent'}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className={`text-sm leading-snug ${!n.read ? 'font-semibold text-slate-900' : 'font-medium text-slate-700'}`}>
+                          {n.title}
+                        </p>
+                        <span className="text-xs text-slate-400 shrink-0">{relativeTime(n.created_at)}</span>
+                      </div>
+                      {n.body && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">{n.body}</p>}
+                      <span className={`inline-block mt-1 text-xs px-1.5 py-0.5 rounded-full font-medium ${TYPE_STYLES[n.type] ?? 'bg-slate-100 text-slate-500'}`}>
+                        {TYPE_LABELS[n.type] ?? n.type}
+                      </span>
                     </div>
-                    {n.body && <p className="text-xs text-slate-500 mt-0.5 line-clamp-2 leading-relaxed">{n.body}</p>}
-                    <span className={`inline-block mt-1 text-xs px-1.5 py-0.5 rounded-full font-medium ${TYPE_STYLES[n.type] ?? 'bg-slate-100 text-slate-500'}`}>
-                      {TYPE_LABELS[n.type] ?? n.type}
-                    </span>
-                  </div>
-                </button>
+                  </button>
+                  <button
+                    onClick={e => handleDelete(e, n.id)}
+                    className="absolute right-2 top-3 p-1 rounded text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                    title="Dismiss"
+                  >
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               ))
             )}
           </div>
@@ -131,6 +161,7 @@ const TYPE_LABELS = {
   forum_reply:   'Reply',
   join_approved: 'Approved',
   chat_message:  'Message',
+  event_comment: 'Comment',
 };
 
 const TYPE_STYLES = {
@@ -139,6 +170,7 @@ const TYPE_STYLES = {
   forum_reply:   'bg-purple-50 text-purple-600',
   join_approved: 'bg-indigo-50 text-indigo-600',
   chat_message:  'bg-violet-50 text-violet-600',
+  event_comment: 'bg-green-50 text-green-700',
 };
 
 function relativeTime(str) {

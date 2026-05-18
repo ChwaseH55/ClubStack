@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useOrg } from '../../../context/OrgContext';
+import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 import { supabase } from '../../../lib/supabase';
 import { Avatar } from '../../../pages/Home';
@@ -11,6 +12,7 @@ function parseIgEmbed(rawUrl) {
 
 export default function OrgSettings() {
   const { org, isAdmin } = useOrg();
+  const { user } = useAuth();
   const { addToast } = useToast();
   const [tab, setTab] = useState('branding');
 
@@ -44,7 +46,7 @@ export default function OrgSettings() {
         ))}
       </div>
 
-      {tab === 'branding'   && <BrandingTab   org={org} addToast={addToast} />}
+      {tab === 'branding'   && <BrandingTab   org={org} addToast={addToast} userId={user.id} />}
       {tab === 'social'     && <SocialTab     org={org} addToast={addToast} />}
       {tab === 'leadership' && <LeadershipTab org={org} addToast={addToast} />}
     </div>
@@ -53,7 +55,7 @@ export default function OrgSettings() {
 
 // ── Branding ──────────────────────────────────────────────────────────────────
 
-function BrandingTab({ org, addToast }) {
+function BrandingTab({ org, addToast, userId }) {
   const b = org?.branding ?? {};
   const [color,   setColor]   = useState(b.primaryColor ?? '#4f46e5');
   const [tagline, setTagline] = useState(b.tagline ?? '');
@@ -68,7 +70,8 @@ function BrandingTab({ org, addToast }) {
 
   async function uploadAsset(file, type) {
     const ext  = file.name.split('.').pop();
-    const path = `${org.id}/${type}.${ext}`;
+    // Path: {userId}/{orgId}/{type}.ext — first segment must be auth.uid() for RLS
+    const path = `${userId}/${org.id}/${type}.${ext}`;
     const { error } = await supabase.storage
       .from('org-assets')
       .upload(path, file, { upsert: true });

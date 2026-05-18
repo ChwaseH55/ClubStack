@@ -352,10 +352,17 @@ function MessagePane({ room, user, onNewMessage, onDeleteRoom }) {
 
   const uploadMedia = async () => {
     const { file, type } = mediaPreview;
-    const ext = file.name.split('.').pop();
-    const path = `${user.id}/chat/${room.id}-${Date.now()}.${ext}`;
     setUploading(true);
-    const { error } = await supabase.storage.from('avatars').upload(path, file, { upsert: false });
+
+    let uploadFile = file;
+    if (type === 'image') {
+      const compressed = await compressImage(file);
+      if (compressed) uploadFile = compressed;
+    }
+
+    const ext = type === 'image' ? 'jpg' : file.name.split('.').pop();
+    const path = `${user.id}/chat/${room.id}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('avatars').upload(path, uploadFile, { upsert: false });
     setUploading(false);
     if (error) { addToast('Upload failed: ' + error.message, 'error'); return null; }
     const { data } = supabase.storage.from('avatars').getPublicUrl(path);
@@ -798,6 +805,30 @@ function relTime(str) {
   if (diff < 3600) return `${Math.floor(diff / 60)}m`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
   return `${Math.floor(diff / 86400)}d`;
+}
+
+// Resize to ≤1920px on the longest side and re-encode as JPEG at 85% quality.
+// Returns a Blob, or null if the canvas API is unavailable.
+function compressImage(file, maxPx = 1920, quality = 0.85) {
+  return new Promise(resolve => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      let { width, height } = img;
+      if (width > maxPx || height > maxPx) {
+        if (width >= height) { height = Math.round(height * maxPx / width); width = maxPx; }
+        else                 { width  = Math.round(width  * maxPx / height); height = maxPx; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      canvas.toBlob(blob => resolve(blob), 'image/jpeg', quality);
+    };
+    img.onerror = () => { URL.revokeObjectURL(objectUrl); resolve(null); };
+    img.src = objectUrl;
+  });
 }
 
 function removeStorageFile(url) {

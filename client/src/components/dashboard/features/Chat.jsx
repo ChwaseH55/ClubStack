@@ -529,7 +529,7 @@ function NewChatModal({ orgId, currentUserId, onClose, onCreate }) {
   useEffect(() => {
     supabase
       .from('memberships')
-      .select('profiles!user_id(id, name, avatar_url)')
+      .select('profiles!memberships_user_profile_fk(id, name, avatar_url)')
       .eq('org_id', orgId)
       .eq('status', 'active')
       .then(({ data }) => {

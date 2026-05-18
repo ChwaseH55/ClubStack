@@ -4,6 +4,15 @@ import { useOrg } from '../../../context/OrgContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useToast } from '../../../context/ToastContext';
 
+const MSG_SELECT = `
+  id, content, media_url, media_type, created_at, author_id, reply_to_id,
+  profiles!chat_messages_author_profile_fk(name, avatar_url),
+  reply_to:chat_messages!chat_messages_reply_fk(
+    id, content, media_type, author_id,
+    profiles!chat_messages_author_profile_fk(name)
+  )
+`.trim();
+
 export default function Chat() {
   const { org } = useOrg();
   const { user } = useAuth();
@@ -14,13 +23,12 @@ export default function Chat() {
 
   const fetchRooms = useCallback(async () => {
     if (!org) return;
-    // Rooms this user participates in, with all participants' profiles
     const { data } = await supabase
       .from('chat_participants')
       .select(`
         room_id,
         chat_rooms!inner (
-          id, name, is_group, org_id,
+          id, name, is_group, org_id, created_by,
           chat_participants ( user_id, profiles!user_id(id, name, avatar_url) )
         )
       `)
@@ -34,11 +42,11 @@ export default function Chat() {
       if (!r || roomMap[r.id]) return;
       roomMap[r.id] = {
         id: r.id, name: r.name, is_group: r.is_group, org_id: r.org_id,
+        created_by: r.created_by,
         participants: r.chat_participants ?? [],
       };
     });
 
-    // Fetch last message per room
     const roomIds = Object.keys(roomMap);
     if (roomIds.length > 0) {
       const { data: msgs } = await supabase
@@ -63,7 +71,6 @@ export default function Chat() {
 
   useEffect(() => { fetchRooms(); }, [fetchRooms]);
 
-  // Re-sort sidebar when a new message comes in (realtime handled in MessagePane)
   const bumpRoom = useCallback((roomId, preview) => {
     setRooms(prev => {
       const idx = prev.findIndex(r => r.id === roomId);
@@ -74,7 +81,6 @@ export default function Chat() {
   }, []);
 
   const handleNewChat = async ({ memberIds, groupName }) => {
-    // For DMs: reuse existing room if it exists
     if (!groupName && memberIds.length === 1) {
       const otherId = memberIds[0];
       const existing = rooms.find(r =>
@@ -85,18 +91,15 @@ export default function Chat() {
       if (existing) { setActiveRoom(existing); setShowNewChat(false); return; }
     }
 
-    // Create new room
     const allIds = [user.id, ...memberIds.filter(id => id !== user.id)];
     const { data: room, error } = await supabase
       .from('chat_rooms')
       .insert({ org_id: org.id, is_group: allIds.length > 2 || Boolean(groupName), name: groupName || null, created_by: user.id })
-      .select('id, name, is_group, org_id')
+      .select('id, name, is_group, org_id, created_by')
       .single();
     if (error || !room) return;
 
-    // Add all participants (self + others) — insert one at a time to satisfy RLS "user_id = auth.uid()"
     await supabase.from('chat_participants').insert({ room_id: room.id, user_id: user.id });
-    // Use service-level insert for others via the "admins can add participants" policy fallback
     for (const uid of memberIds.filter(id => id !== user.id)) {
       await supabase.from('chat_participants').insert({ room_id: room.id, user_id: uid });
     }
@@ -105,8 +108,14 @@ export default function Chat() {
     setRooms(prev => [newRoom, ...prev]);
     setActiveRoom(newRoom);
     setShowNewChat(false);
-    // Refresh to get full profile data
     setTimeout(fetchRooms, 500);
+  };
+
+  const handleDeleteRoom = async (roomId) => {
+    const { error } = await supabase.from('chat_rooms').delete().eq('id', roomId);
+    if (error) return;
+    setRooms(prev => prev.filter(r => r.id !== roomId));
+    if (activeRoom?.id === roomId) setActiveRoom(null);
   };
 
   return (
@@ -144,6 +153,7 @@ export default function Chat() {
                 currentUserId={user.id}
                 active={activeRoom?.id === room.id}
                 onClick={() => setActiveRoom(room)}
+                onDelete={() => handleDeleteRoom(room.id)}
               />
             ))
           )}
@@ -157,6 +167,7 @@ export default function Chat() {
           room={activeRoom}
           user={user}
           onNewMessage={bumpRoom}
+          onDeleteRoom={() => handleDeleteRoom(activeRoom.id)}
         />
       ) : (
         <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-3">
@@ -184,31 +195,46 @@ export default function Chat() {
 
 // ── ConversationRow ──────────────────────────────────────────────────────────
 
-function ConversationRow({ room, currentUserId, active, onClick }) {
+function ConversationRow({ room, currentUserId, active, onClick, onDelete }) {
+  const [hovered, setHovered] = useState(false);
   const others = room.participants.filter(p => p.user_id !== currentUserId);
   const displayName = room.name || others.map(p => p.profiles?.name ?? 'Unknown').join(', ') || 'Unknown';
   const lastMsg = room.lastMessage;
 
   return (
-    <button
-      onClick={onClick}
-      className={`w-full text-left flex items-center gap-3 px-4 py-3 border-b border-slate-100 transition-colors hover:bg-white ${active ? 'bg-white border-l-2 border-l-indigo-500' : ''}`}
+    <div
+      className={`relative flex items-center border-b border-slate-100 transition-colors hover:bg-white ${active ? 'bg-white border-l-2 border-l-indigo-500' : ''}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      <ParticipantAvatar participants={others} isGroup={room.is_group} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between gap-1">
-          <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
-          {lastMsg && <span className="text-xs text-slate-400 shrink-0">{relTime(lastMsg.created_at)}</span>}
+      <button onClick={onClick} className="flex-1 flex items-center gap-3 px-4 py-3 text-left min-w-0">
+        <ParticipantAvatar participants={others} isGroup={room.is_group} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-1">
+            <p className="text-sm font-semibold text-slate-900 truncate">{displayName}</p>
+            {lastMsg && <span className="text-xs text-slate-400 shrink-0">{relTime(lastMsg.created_at)}</span>}
+          </div>
+          <p className="text-xs text-slate-400 truncate mt-0.5">
+            {lastMsg
+              ? lastMsg.media_type === 'image' ? '📷 Photo'
+                : lastMsg.media_type === 'video' ? '🎥 Video'
+                : lastMsg.content ?? ''
+              : 'No messages yet'}
+          </p>
         </div>
-        <p className="text-xs text-slate-400 truncate mt-0.5">
-          {lastMsg
-            ? lastMsg.media_type === 'image' ? '📷 Photo'
-              : lastMsg.media_type === 'video' ? '🎥 Video'
-              : lastMsg.content ?? ''
-            : 'No messages yet'}
-        </p>
-      </div>
-    </button>
+      </button>
+      {hovered && (
+        <button
+          onClick={e => { e.stopPropagation(); onDelete(); }}
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+          title="Delete chat"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -226,7 +252,6 @@ function ParticipantAvatar({ participants, isGroup }) {
       </div>
     );
   }
-  // Group: stack two avatars
   const [a, b] = participants;
   return (
     <div className="relative w-10 h-10 shrink-0">
@@ -242,14 +267,15 @@ function ParticipantAvatar({ participants, isGroup }) {
 
 // ── MessagePane ──────────────────────────────────────────────────────────────
 
-function MessagePane({ room, user, onNewMessage }) {
+function MessagePane({ room, user, onNewMessage, onDeleteRoom }) {
   const { addToast } = useToast();
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [mediaPreview, setMediaPreview] = useState(null); // { file, url, type }
+  const [mediaPreview, setMediaPreview] = useState(null);
+  const [replyTo, setReplyTo] = useState(null); // { id, content, media_type, profiles }
   const bottomRef = useRef(null);
   const inputRef = useRef(null);
   const fileRef = useRef(null);
@@ -265,7 +291,7 @@ function MessagePane({ room, user, onNewMessage }) {
     setLoading(true);
     supabase
       .from('chat_messages')
-      .select('id, content, media_url, media_type, created_at, author_id, profiles!chat_messages_author_profile_fk(name, avatar_url)')
+      .select(MSG_SELECT)
       .eq('room_id', room.id)
       .order('created_at', { ascending: true })
       .limit(200)
@@ -283,7 +309,7 @@ function MessagePane({ room, user, onNewMessage }) {
         async payload => {
           const { data } = await supabase
             .from('chat_messages')
-            .select('id, content, media_url, media_type, created_at, author_id, profiles!chat_messages_author_profile_fk(name, avatar_url)')
+            .select(MSG_SELECT)
             .eq('id', payload.new.id)
             .single();
           if (data) {
@@ -291,6 +317,10 @@ function MessagePane({ room, user, onNewMessage }) {
             scrollToBottom();
             onNewMessage(room.id, { content: data.content, media_type: data.media_type, created_at: data.created_at });
           }
+        })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${room.id}` },
+        payload => {
+          setMessages(prev => prev.filter(m => m.id !== payload.old.id));
         })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
@@ -300,8 +330,7 @@ function MessagePane({ room, user, onNewMessage }) {
     const file = e.target.files?.[0];
     if (!file) return;
     const isVideo = file.type.startsWith('video/');
-    const url = URL.createObjectURL(file);
-    setMediaPreview({ file, url, type: isVideo ? 'video' : 'image' });
+    setMediaPreview({ file, url: URL.createObjectURL(file), type: isVideo ? 'video' : 'image' });
     e.target.value = '';
   };
 
@@ -335,7 +364,10 @@ function MessagePane({ room, user, onNewMessage }) {
       clearMedia();
     }
 
+    const replyId = replyTo?.id ?? null;
     setInput('');
+    setReplyTo(null);
+
     await supabase.from('chat_messages').insert({
       room_id: room.id,
       author_id: user.id,
@@ -343,13 +375,19 @@ function MessagePane({ room, user, onNewMessage }) {
       content: text || null,
       media_url: media?.url ?? null,
       media_type: media?.type ?? null,
+      reply_to_id: replyId,
     });
 
     setSending(false);
     inputRef.current?.focus();
   };
 
+  const handleDelete = async (msgId) => {
+    await supabase.from('chat_messages').delete().eq('id', msgId);
+  };
+
   const handleKeyDown = e => {
+    if (e.key === 'Escape' && replyTo) { setReplyTo(null); return; }
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(e); }
   };
 
@@ -358,14 +396,25 @@ function MessagePane({ room, user, onNewMessage }) {
   return (
     <div className="flex-1 flex flex-col min-w-0">
       {/* Header */}
-      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center gap-3">
-        <ParticipantAvatar participants={others} isGroup={room.is_group} />
-        <div>
-          <h2 className="font-semibold text-slate-900 text-sm">{headerName}</h2>
-          {room.is_group && (
-            <p className="text-xs text-slate-400">{room.participants.length} members</p>
-          )}
+      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <ParticipantAvatar participants={others} isGroup={room.is_group} />
+          <div>
+            <h2 className="font-semibold text-slate-900 text-sm">{headerName}</h2>
+            {room.is_group && (
+              <p className="text-xs text-slate-400">{room.participants.length} members</p>
+            )}
+          </div>
         </div>
+        <button
+          onClick={onDeleteRoom}
+          className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+          title="Delete conversation"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        </button>
       </div>
 
       {/* Messages */}
@@ -385,21 +434,39 @@ function MessagePane({ room, user, onNewMessage }) {
               group={group}
               currentUserId={user.id}
               showHeader={gi === 0 || !sameAuthorClose(grouped[gi - 1]?.at(-1), group[0])}
+              onReply={setReplyTo}
+              onDelete={handleDelete}
             />
           ))
         )}
         <div ref={bottomRef} />
       </div>
 
+      {/* Reply preview bar */}
+      {replyTo && (
+        <div className="px-5 py-2 border-t border-slate-100 bg-slate-50 flex items-center gap-3">
+          <div className="w-0.5 h-8 bg-indigo-400 rounded-full shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-indigo-600">{replyTo.profiles?.name ?? 'Unknown'}</p>
+            <p className="text-xs text-slate-500 truncate">
+              {replyTo.media_type === 'image' ? '📷 Photo' : replyTo.media_type === 'video' ? '🎥 Video' : replyTo.content}
+            </p>
+          </div>
+          <button onClick={() => setReplyTo(null)} className="text-slate-400 hover:text-slate-600 transition-colors p-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Media preview */}
       {mediaPreview && (
         <div className="px-5 pb-2">
           <div className="relative inline-block">
-            {mediaPreview.type === 'image' ? (
-              <img src={mediaPreview.url} className="h-24 w-auto rounded-xl object-cover border border-slate-200" alt="preview" />
-            ) : (
-              <video src={mediaPreview.url} className="h-24 rounded-xl border border-slate-200" />
-            )}
+            {mediaPreview.type === 'image'
+              ? <img src={mediaPreview.url} className="h-24 w-auto rounded-xl object-cover border border-slate-200" alt="preview" />
+              : <video src={mediaPreview.url} className="h-24 rounded-xl border border-slate-200" />}
             <button
               onClick={clearMedia}
               className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-slate-700 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-500 transition-colors"
@@ -448,7 +515,7 @@ function MessagePane({ room, user, onNewMessage }) {
             )}
           </button>
         </form>
-        <p className="text-xs text-slate-400 mt-1.5 pl-1">Enter to send · Shift+Enter for new line</p>
+        <p className="text-xs text-slate-400 mt-1.5 pl-1">Enter to send · Shift+Enter for new line · Esc to cancel reply</p>
       </div>
     </div>
   );
@@ -456,12 +523,12 @@ function MessagePane({ room, user, onNewMessage }) {
 
 // ── MessageGroup ─────────────────────────────────────────────────────────────
 
-function MessageGroup({ group, currentUserId, showHeader }) {
+function MessageGroup({ group, currentUserId, showHeader, onReply, onDelete }) {
   const first = group[0];
   const isOwn = first.author_id === currentUserId;
 
   return (
-    <div className={`flex gap-3 group/msg hover:bg-slate-50 rounded-xl px-2 py-1 -mx-2 ${isOwn ? 'flex-row-reverse' : ''}`}>
+    <div className={`flex gap-3 group/msg ${isOwn ? 'flex-row-reverse' : ''}`}>
       <div className="w-8 shrink-0 mt-0.5">
         {showHeader && !isOwn && (
           <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-semibold text-indigo-700 overflow-hidden">
@@ -479,39 +546,93 @@ function MessageGroup({ group, currentUserId, showHeader }) {
           </div>
         )}
         {group.map(msg => (
-          <div key={msg.id} className={`max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-            {msg.media_url && (
-              msg.media_type === 'image' ? (
-                <a href={msg.media_url} target="_blank" rel="noreferrer">
-                  <img
-                    src={msg.media_url}
-                    className={`rounded-2xl object-cover max-h-64 w-auto cursor-pointer hover:opacity-90 transition-opacity ${isOwn ? 'rounded-br-sm' : 'rounded-bl-sm'}`}
-                    alt="shared image"
-                  />
-                </a>
-              ) : (
-                <video
-                  src={msg.media_url}
-                  controls
-                  className={`rounded-2xl max-h-64 max-w-full ${isOwn ? 'rounded-br-sm' : 'rounded-bl-sm'}`}
-                />
-              )
-            )}
-            {msg.content && (
-              <div className={`px-3.5 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
-                isOwn
-                  ? 'bg-indigo-600 text-white rounded-br-sm'
-                  : 'bg-white border border-slate-200 text-slate-800 rounded-bl-sm shadow-sm'
-              }`}>
-                {msg.content}
-              </div>
-            )}
-            {isOwn && (
-              <span className="text-xs text-slate-400 px-1">{formatTime(msg.created_at)}</span>
-            )}
-          </div>
+          <MessageBubble
+            key={msg.id}
+            msg={msg}
+            isOwn={isOwn}
+            currentUserId={currentUserId}
+            onReply={onReply}
+            onDelete={onDelete}
+          />
         ))}
       </div>
+    </div>
+  );
+}
+
+function MessageBubble({ msg, isOwn, currentUserId, onReply, onDelete }) {
+  const [hovered, setHovered] = useState(false);
+
+  return (
+    <div
+      className={`relative flex flex-col gap-1 max-w-xs lg:max-w-md xl:max-w-lg ${isOwn ? 'items-end' : 'items-start'}`}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Quoted reply preview */}
+      {msg.reply_to && (
+        <div className={`flex items-start gap-2 px-3 py-1.5 rounded-xl text-xs max-w-full ${isOwn ? 'bg-indigo-700/30 text-indigo-100' : 'bg-slate-100 text-slate-500'}`}>
+          <div className="w-0.5 h-full min-h-[16px] bg-current rounded-full shrink-0 opacity-50" />
+          <div className="min-w-0">
+            <p className="font-medium opacity-80 truncate">{msg.reply_to.profiles?.name ?? 'Unknown'}</p>
+            <p className="truncate opacity-70">
+              {msg.reply_to.media_type === 'image' ? '📷 Photo'
+                : msg.reply_to.media_type === 'video' ? '🎥 Video'
+                : msg.reply_to.content}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {msg.media_url && (
+        msg.media_type === 'image' ? (
+          <a href={msg.media_url} target="_blank" rel="noreferrer">
+            <img
+              src={msg.media_url}
+              className={`rounded-2xl object-cover max-h-64 w-auto cursor-pointer hover:opacity-90 transition-opacity ${isOwn ? 'rounded-br-sm' : 'rounded-bl-sm'}`}
+              alt="shared image"
+            />
+          </a>
+        ) : (
+          <video src={msg.media_url} controls className={`rounded-2xl max-h-64 max-w-full ${isOwn ? 'rounded-br-sm' : 'rounded-bl-sm'}`} />
+        )
+      )}
+      {msg.content && (
+        <div className={`px-3.5 py-2 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
+          isOwn ? 'bg-indigo-600 text-white rounded-br-sm' : 'bg-white border border-slate-200 text-slate-800 rounded-bl-sm shadow-sm'
+        }`}>
+          {msg.content}
+        </div>
+      )}
+      {isOwn && (
+        <span className="text-xs text-slate-400 px-1">{formatTime(msg.created_at)}</span>
+      )}
+
+      {/* Hover actions */}
+      {hovered && (
+        <div className={`absolute top-0 flex items-center gap-1 ${isOwn ? 'right-full mr-2' : 'left-full ml-2'}`}>
+          <button
+            onClick={() => onReply(msg)}
+            className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-indigo-600 hover:border-indigo-300 shadow-sm transition-colors"
+            title="Reply"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+          </button>
+          {msg.author_id === currentUserId && (
+            <button
+              onClick={() => onDelete(msg.id)}
+              className="p-1.5 rounded-lg bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-300 shadow-sm transition-colors"
+              title="Delete message"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -533,18 +654,13 @@ function NewChatModal({ orgId, currentUserId, onClose, onCreate }) {
       .eq('org_id', orgId)
       .eq('status', 'active')
       .then(({ data }) => {
-        setMembers((data ?? [])
-          .map(m => m.profiles)
-          .filter(p => p && p.id !== currentUserId));
+        setMembers((data ?? []).map(m => m.profiles).filter(p => p && p.id !== currentUserId));
         setLoading(false);
       });
   }, [orgId, currentUserId]);
 
   const filtered = members.filter(m => m.name?.toLowerCase().includes(search.toLowerCase()));
-
-  const toggle = m => {
-    setSelected(prev => prev.some(p => p.id === m.id) ? prev.filter(p => p.id !== m.id) : [...prev, m]);
-  };
+  const toggle = m => setSelected(prev => prev.some(p => p.id === m.id) ? prev.filter(p => p.id !== m.id) : [...prev, m]);
 
   const handleCreate = async () => {
     if (!selected.length) return;
@@ -582,67 +698,45 @@ function NewChatModal({ orgId, currentUserId, onClose, onCreate }) {
         )}
 
         <div className="px-4 py-3">
-          <input
-            autoFocus
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search members…"
-            className="input w-full text-sm"
-          />
+          <input autoFocus type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search members…" className="input w-full text-sm" />
         </div>
 
         <div className="flex-1 overflow-y-auto border-t border-slate-100">
           {loading ? (
-            <div className="p-4 space-y-2">
-              {[1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />)}
-            </div>
+            <div className="p-4 space-y-2">{[1,2,3].map(i => <div key={i} className="h-12 bg-slate-100 rounded-xl animate-pulse" />)}</div>
           ) : filtered.length === 0 ? (
             <p className="p-6 text-center text-slate-400 text-sm">No members found.</p>
-          ) : (
-            filtered.map(m => {
-              const isSel = selected.some(p => p.id === m.id);
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => toggle(m)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 ${isSel ? 'bg-indigo-50' : ''}`}
-                >
-                  <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-semibold text-indigo-700 shrink-0 overflow-hidden">
-                    {m.avatar_url ? <img src={m.avatar_url} className="w-full h-full object-cover" alt="" /> : (m.name?.[0] ?? '?').toUpperCase()}
+          ) : filtered.map(m => {
+            const isSel = selected.some(p => p.id === m.id);
+            return (
+              <button key={m.id} onClick={() => toggle(m)}
+                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 ${isSel ? 'bg-indigo-50' : ''}`}>
+                <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-sm font-semibold text-indigo-700 shrink-0 overflow-hidden">
+                  {m.avatar_url ? <img src={m.avatar_url} className="w-full h-full object-cover" alt="" /> : (m.name?.[0] ?? '?').toUpperCase()}
+                </div>
+                <span className="flex-1 text-left text-sm font-medium text-slate-800">{m.name}</span>
+                {isSel && (
+                  <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center shrink-0">
+                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
                   </div>
-                  <span className="flex-1 text-left text-sm font-medium text-slate-800">{m.name}</span>
-                  {isSel && (
-                    <div className="w-5 h-5 rounded-full bg-indigo-600 flex items-center justify-center shrink-0">
-                      <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                  )}
-                </button>
-              );
-            })
-          )}
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {isGroup && (
           <div className="px-4 py-3 border-t border-slate-100">
-            <input
-              type="text"
-              value={groupName}
-              onChange={e => setGroupName(e.target.value)}
-              placeholder="Group name (optional)"
-              className="input w-full text-sm"
-            />
+            <input type="text" value={groupName} onChange={e => setGroupName(e.target.value)}
+              placeholder="Group name (optional)" className="input w-full text-sm" />
           </div>
         )}
 
         <div className="px-4 py-4 border-t border-slate-100">
-          <button
-            onClick={handleCreate}
-            disabled={!selected.length || creating}
-            className="btn-primary w-full py-2.5"
-          >
+          <button onClick={handleCreate} disabled={!selected.length || creating} className="btn-primary w-full py-2.5">
             {creating ? 'Starting…' : btnLabel}
           </button>
         </div>
@@ -670,6 +764,7 @@ function groupMessages(messages) {
 
 function sameAuthorClose(a, b) {
   if (!a || !b || a.author_id !== b.author_id) return false;
+  if (a.reply_to_id || b.reply_to_id) return false; // replies always start a new group
   return (new Date(b.created_at) - new Date(a.created_at)) < 5 * 60 * 1000;
 }
 

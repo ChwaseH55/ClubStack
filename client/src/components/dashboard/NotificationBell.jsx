@@ -126,17 +126,19 @@ export default function NotificationBell() {
 }
 
 const TYPE_LABELS = {
-  announcement: 'Announcement',
-  event:        'Event',
-  forum_reply:  'Reply',
-  join_approved:'Approved',
+  announcement:  'Announcement',
+  event:         'Event',
+  forum_reply:   'Reply',
+  join_approved: 'Approved',
+  chat_message:  'Message',
 };
 
 const TYPE_STYLES = {
-  announcement: 'bg-blue-50 text-blue-600',
-  event:        'bg-green-50 text-green-600',
-  forum_reply:  'bg-purple-50 text-purple-600',
-  join_approved:'bg-indigo-50 text-indigo-600',
+  announcement:  'bg-blue-50 text-blue-600',
+  event:         'bg-green-50 text-green-600',
+  forum_reply:   'bg-purple-50 text-purple-600',
+  join_approved: 'bg-indigo-50 text-indigo-600',
+  chat_message:  'bg-violet-50 text-violet-600',
 };
 
 function relativeTime(str) {

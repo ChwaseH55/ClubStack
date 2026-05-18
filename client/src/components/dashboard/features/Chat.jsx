@@ -112,8 +112,19 @@ export default function Chat() {
   };
 
   const handleDeleteRoom = async (roomId) => {
+    // Fetch all media URLs in this room before deleting
+    const { data: mediaMessages } = await supabase
+      .from('chat_messages')
+      .select('media_url')
+      .eq('room_id', roomId)
+      .not('media_url', 'is', null);
+
     const { error } = await supabase.from('chat_rooms').delete().eq('id', roomId);
     if (error) return;
+
+    // Clean up storage files after DB rows are gone
+    (mediaMessages ?? []).forEach(m => removeStorageFile(m.media_url));
+
     setRooms(prev => prev.filter(r => r.id !== roomId));
     if (activeRoom?.id === roomId) setActiveRoom(null);
   };
@@ -383,7 +394,9 @@ function MessagePane({ room, user, onNewMessage, onDeleteRoom }) {
   };
 
   const handleDelete = async (msgId) => {
+    const msg = messages.find(m => m.id === msgId);
     await supabase.from('chat_messages').delete().eq('id', msgId);
+    if (msg?.media_url) removeStorageFile(msg.media_url);
   };
 
   const handleKeyDown = e => {
@@ -785,4 +798,12 @@ function relTime(str) {
   if (diff < 3600) return `${Math.floor(diff / 60)}m`;
   if (diff < 86400) return `${Math.floor(diff / 3600)}h`;
   return `${Math.floor(diff / 86400)}d`;
+}
+
+function removeStorageFile(url) {
+  if (!url) return;
+  try {
+    const path = decodeURIComponent(url.split('/avatars/')[1]?.split('?')[0]);
+    if (path) supabase.storage.from('avatars').remove([path]);
+  } catch (_) {}
 }

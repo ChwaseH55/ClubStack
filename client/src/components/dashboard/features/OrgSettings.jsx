@@ -70,13 +70,13 @@ function BrandingTab({ org, addToast, userId }) {
 
   async function uploadAsset(file, type) {
     const ext  = file.name.split('.').pop();
-    // Path: {userId}/{orgId}/{type}.ext — first segment must be auth.uid() for RLS
-    const path = `${userId}/${org.id}/${type}.${ext}`;
+    // Use the avatars bucket (proven working RLS: userId must be first path segment)
+    const path = `${userId}/orgs/${org.id}/${type}.${ext}`;
     const { error } = await supabase.storage
-      .from('org-assets')
+      .from('avatars')
       .upload(path, file, { upsert: true });
     if (error) { addToast(error.message, 'error'); return null; }
-    const { data } = supabase.storage.from('org-assets').getPublicUrl(path);
+    const { data } = supabase.storage.from('avatars').getPublicUrl(path);
     return `${data.publicUrl}?t=${Date.now()}`;
   }
 

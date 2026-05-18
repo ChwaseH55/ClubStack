@@ -24,6 +24,7 @@ export default function OrgSettings() {
     { key: 'branding',    label: 'Branding' },
     { key: 'social',      label: 'Social & Posts' },
     { key: 'leadership',  label: 'Leadership' },
+    { key: 'members',     label: 'Members' },
   ];
 
   return (
@@ -49,6 +50,7 @@ export default function OrgSettings() {
       {tab === 'branding'   && <BrandingTab   org={org} addToast={addToast} userId={user.id} />}
       {tab === 'social'     && <SocialTab     org={org} addToast={addToast} />}
       {tab === 'leadership' && <LeadershipTab org={org} addToast={addToast} />}
+      {tab === 'members'    && <MembersTab    org={org} addToast={addToast} />}
     </div>
   );
 }
@@ -57,6 +59,7 @@ export default function OrgSettings() {
 
 function BrandingTab({ org, addToast, userId }) {
   const b = org?.branding ?? {};
+  const [isPublic,       setIsPublic]       = useState(org?.is_public   ?? false);
   const [color,          setColor]          = useState(b.primaryColor   ?? '#4f46e5');
   const [secondaryColor, setSecondaryColor] = useState(b.secondaryColor ?? '#6366f1');
   const [tagline, setTagline] = useState(b.tagline ?? '');
@@ -113,7 +116,7 @@ function BrandingTab({ org, addToast, userId }) {
     setSaving(true);
     const { error } = await supabase
       .from('organizations')
-      .update({ branding: { ...org.branding, primaryColor: color, secondaryColor, tagline, about, logoUrl, bannerUrl } })
+      .update({ is_public: isPublic, branding: { ...org.branding, primaryColor: color, secondaryColor, tagline, about, logoUrl, bannerUrl } })
       .eq('id', org.id);
     setSaving(false);
     if (error) { addToast(error.message, 'error'); return; }
@@ -232,6 +235,23 @@ function BrandingTab({ org, addToast, userId }) {
             className="input resize-none leading-relaxed"
           />
         </div>
+      </div>
+
+      {/* Public page toggle */}
+      <div className="card p-5 flex items-center justify-between gap-4">
+        <div>
+          <p className="font-semibold text-slate-800">Public organization page</p>
+          <p className="text-sm text-slate-400 mt-0.5">
+            Allow anyone to view your org's homepage at{' '}
+            <span className="font-mono text-slate-500">/club/{org?.slug}</span> without signing in.
+          </p>
+        </div>
+        <button
+          onClick={() => setIsPublic(v => !v)}
+          className={`relative shrink-0 w-11 h-6 rounded-full transition-colors ${isPublic ? 'bg-indigo-600' : 'bg-slate-200'}`}
+        >
+          <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isPublic ? 'translate-x-5' : ''}`} />
+        </button>
       </div>
 
       <button onClick={handleSave} disabled={saving} className="btn-primary">
@@ -488,6 +508,71 @@ function MemberCard({ m, onUpdate, onSave }) {
       <button onClick={() => onSave(m)} className="btn-secondary text-sm px-4 py-2">
         Save
       </button>
+    </div>
+  );
+}
+
+// ── Members Tab ───────────────────────────────────────────────────────────────
+
+function MembersTab({ org, addToast }) {
+  const [requests, setRequests] = useState([]);
+  const [loading,  setLoading]  = useState(true);
+
+  useEffect(() => {
+    if (!org) return;
+    supabase
+      .from('memberships')
+      .select('id, created_at, profiles!user_id(id, name, avatar_url)')
+      .eq('org_id', org.id)
+      .eq('status', 'requested')
+      .order('created_at')
+      .then(({ data }) => { setRequests(data ?? []); setLoading(false); });
+  }, [org]);
+
+  async function approve(id) {
+    const { error } = await supabase.from('memberships').update({ status: 'active' }).eq('id', id);
+    if (error) { addToast(error.message, 'error'); return; }
+    setRequests(r => r.filter(x => x.id !== id));
+    addToast('Member approved.', 'success');
+  }
+
+  async function decline(id) {
+    const { error } = await supabase.from('memberships').delete().eq('id', id);
+    if (error) { addToast(error.message, 'error'); return; }
+    setRequests(r => r.filter(x => x.id !== id));
+    addToast('Request declined.', 'info');
+  }
+
+  if (loading) return <div className="text-slate-400 text-sm py-4">Loading…</div>;
+
+  return (
+    <div className="space-y-4">
+      <div className="card p-5 space-y-1">
+        <h2 className="font-semibold text-slate-800">Join Requests</h2>
+        <p className="text-sm text-slate-400">
+          People who requested to join via your public org page.
+        </p>
+      </div>
+
+      {requests.length === 0 ? (
+        <div className="card px-8 py-14 text-center text-slate-400 text-sm">
+          No pending join requests.
+        </div>
+      ) : (
+        requests.map(r => (
+          <div key={r.id} className="card px-5 py-4 flex items-center gap-4">
+            <Avatar name={r.profiles?.name ?? '?'} url={r.profiles?.avatar_url} />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-slate-900">{r.profiles?.name ?? 'Unknown'}</p>
+              <p className="text-xs text-slate-400">Requested {new Date(r.created_at).toLocaleDateString()}</p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={() => approve(r.id)} className="btn-primary py-1.5 px-3 text-xs">Approve</button>
+              <button onClick={() => decline(r.id)} className="btn-secondary py-1.5 px-3 text-xs">Decline</button>
+            </div>
+          </div>
+        ))
+      )}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
@@ -17,6 +17,8 @@ export default function Login() {
   const { login } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/home';
 
   const handleSubmit = async e => {
     e.preventDefault();
@@ -25,7 +27,7 @@ export default function Login() {
     setLoading(false);
     if (error) { addToast(error.message, 'error'); return; }
     addToast('Welcome back!', 'success');
-    navigate('/home');
+    navigate(redirectTo);
   };
 
   return (

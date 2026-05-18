@@ -9,6 +9,7 @@ import Home from './pages/Home';
 import CreateOrg from './pages/CreateOrg';
 import Landing from './pages/Landing';
 import Profile from './pages/Profile';
+import PublicOrgPage from './pages/PublicOrgPage';
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -41,6 +42,7 @@ export default function App() {
               </PrivateRoute>
             }
           />
+          <Route path="/club/:slug" element={<PublicOrgPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ToastProvider>

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 
@@ -18,6 +18,8 @@ export default function Register() {
   const { register } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '';
 
   const handleSubmit = async e => {
     e.preventDefault();
@@ -26,7 +28,7 @@ export default function Register() {
     setLoading(false);
     if (error) { addToast(error.message, 'error'); return; }
     addToast('Account created! Check your email to confirm before signing in.', 'success', 6000);
-    navigate('/login');
+    navigate(redirectTo ? `/login?redirect=${encodeURIComponent(redirectTo)}` : '/login');
   };
 
   return (

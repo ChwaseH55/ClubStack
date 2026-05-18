@@ -16,7 +16,7 @@ export function OrgProvider({ children }) {
     const load = async () => {
       const { data: orgData } = await supabase
         .from('organizations')
-        .select('id, name, slug, branding, enabled_features')
+        .select('id, name, slug, branding, enabled_features, is_public')
         .eq('slug', slug)
         .single();
 

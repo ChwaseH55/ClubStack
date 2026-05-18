@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { ContactSection } from '../components/dashboard/DashboardHome';
@@ -13,6 +13,9 @@ export default function PublicOrgPage() {
   const { slug } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const autoJoin = searchParams.get('join') === '1';
+  const didAutoJoin = useRef(false);
 
   const [org, setOrg] = useState(null);
   const [leadership, setLeadership] = useState([]);
@@ -60,14 +63,28 @@ export default function PublicOrgPage() {
     load();
   }, [slug, user]);
 
+  // Auto-trigger join when returning from auth with ?join=1
+  useEffect(() => {
+    if (!autoJoin || !user || !org || memberStatus !== null || didAutoJoin.current) return;
+    didAutoJoin.current = true;
+    handleJoin();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoJoin, user, org, memberStatus]);
+
   async function handleJoin() {
-    if (!user) { navigate(`/register?redirect=/club/${slug}`); return; }
+    if (!user) { navigate(`/register?redirect=/club/${slug}%3Fjoin%3D1`); return; }
     setRequesting(true);
-    await supabase.from('memberships').insert({
+    const { error } = await supabase.from('memberships').insert({
       org_id: org.id, user_id: user.id, role: 'member', status: 'requested',
     });
-    setMemberStatus('requested');
     setRequesting(false);
+    if (!error) { setMemberStatus('requested'); return; }
+    if (error.code === '23505') {
+      // already exists — re-fetch actual status
+      const { data } = await supabase.from('memberships').select('status')
+        .eq('org_id', org.id).eq('user_id', user.id).maybeSingle();
+      setMemberStatus(data?.status ?? null);
+    }
   }
 
   if (loading) return (

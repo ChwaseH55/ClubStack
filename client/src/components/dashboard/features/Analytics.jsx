@@ -34,9 +34,9 @@ export default function Analytics() {
       supabase.from('event_rsvps').select('event_id, events!inner(org_id)', { count: 'exact' })
         .eq('events.org_id', org.id).eq('status', 'going'),
 
-      // Top 5 events by RSVP going count
-      supabase.from('events').select('id, title, start_at, event_rsvps(count)')
-        .eq('org_id', org.id).order('start_at', { ascending: false }).limit(10),
+      // Top 5 events by going RSVP count — fetch statuses and filter in JS
+      supabase.from('events').select('id, title, start_at, event_rsvps(status)')
+        .eq('org_id', org.id).order('start_at', { ascending: false }).limit(20),
     ]).then(results => {
       const [
         activeMembers, pendingReqs,
@@ -57,7 +57,10 @@ export default function Analytics() {
       });
 
       const sorted = (eventsWithRsvp.data ?? [])
-        .map(e => ({ ...e, rsvpCount: e.event_rsvps?.[0]?.count ?? 0 }))
+        .map(e => ({
+          ...e,
+          rsvpCount: (e.event_rsvps ?? []).filter(r => r.status === 'going').length,
+        }))
         .sort((a, b) => b.rsvpCount - a.rsvpCount)
         .slice(0, 5);
       setTopEvents(sorted);

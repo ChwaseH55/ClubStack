@@ -25,7 +25,9 @@ export default function JoinViaInvite() {
         if (invite.expires_at && new Date(invite.expires_at) < new Date()) { setStatus('expired'); return; }
         if (invite.max_uses && invite.uses_count >= invite.max_uses) { setStatus('full'); return; }
 
-        setOrg(invite.organizations);
+        const orgData = invite.organizations;
+        const orgSlug = orgData?.slug;
+        setOrg(orgData);
 
         if (!user) {
           setStatus('unauthenticated');
@@ -40,7 +42,6 @@ export default function JoinViaInvite() {
 
         setStatus('joining');
         if (existing) {
-          // Update existing (e.g. requested → active)
           await supabase.from('memberships').update({ status: 'active' }).eq('id', existing.id);
         } else {
           await supabase.from('memberships').insert({
@@ -50,7 +51,9 @@ export default function JoinViaInvite() {
 
         await supabase.from('invite_links').update({ uses_count: invite.uses_count + 1 }).eq('id', invite.id);
         setStatus('done');
-        setTimeout(() => navigate(`/orgs/${invite.organizations.slug}`), 1500);
+        if (orgSlug) {
+          setTimeout(() => navigate(`/orgs/${orgSlug}`), 1500);
+        }
       });
   }, [token, user, navigate]);
 
@@ -79,7 +82,11 @@ export default function JoinViaInvite() {
           </svg>
         </div>
         <p className="font-semibold text-slate-900 text-lg">You're in!</p>
-        <p className="text-slate-500 text-sm">Redirecting to {org?.name}…</p>
+        {org?.slug ? (
+          <p className="text-slate-500 text-sm">Redirecting to {org.name}…</p>
+        ) : (
+          <Link to="/home" className="btn-primary px-6 py-2.5">Go to dashboard</Link>
+        )}
       </Shell>
     );
   }

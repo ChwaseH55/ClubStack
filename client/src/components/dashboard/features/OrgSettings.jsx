@@ -473,7 +473,7 @@ function LeadershipTab({ org, addToast }) {
     if (!org) return;
     supabase
       .from('memberships')
-      .select('id, role, title, bio, profiles!user_id(id, name, avatar_url)')
+      .select('id, role, title, bio, profiles!memberships_user_profile_fk(id, name, avatar_url)')
       .eq('org_id', org.id)
       .eq('status', 'active')
       .order('role')
@@ -575,7 +575,7 @@ function MembersTab({ org, addToast }) {
   useEffect(() => {
     if (!org) return;
     Promise.all([
-      supabase.from('memberships').select('id, created_at, profiles!user_id(id, name, avatar_url)')
+      supabase.from('memberships').select('id, created_at, profiles!memberships_user_profile_fk(id, name, avatar_url)')
         .eq('org_id', org.id).eq('status', 'requested').order('created_at'),
       supabase.from('invite_links').select('id, token, created_at, expires_at, max_uses, uses_count, active')
         .eq('org_id', org.id).order('created_at', { ascending: false }),

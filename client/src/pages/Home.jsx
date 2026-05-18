@@ -17,6 +17,12 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [notifLoading, setNotifLoading] = useState(true);
 
+  // Discover tab state
+  const [discoverQuery, setDiscoverQuery] = useState('');
+  const [publicOrgs, setPublicOrgs] = useState([]);
+  const [discoverLoading, setDiscoverLoading] = useState(false);
+  const [joinStatuses, setJoinStatuses] = useState({});
+
   const fetchNotifications = useCallback(async (orgIds) => {
     setNotifLoading(true);
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -111,6 +117,41 @@ export default function Home() {
 
   const handleLogout = async () => { await logout(); navigate('/'); };
 
+  // Load public orgs when Discover tab opens
+  useEffect(() => {
+    if (tab !== 'discover') return;
+    setDiscoverLoading(true);
+    supabase
+      .from('organizations')
+      .select('id, name, slug, branding')
+      .eq('is_public', true)
+      .order('name')
+      .then(({ data }) => {
+        const orgs = data ?? [];
+        setPublicOrgs(orgs);
+        setDiscoverLoading(false);
+        // pre-populate join statuses for orgs user is already in
+        const statusMap = {};
+        memberships.forEach(m => { statusMap[m.organizations.id] = m.status ?? 'active'; });
+        setJoinStatuses(statusMap);
+      });
+  }, [tab]);
+
+  async function handleDiscover(orgId, orgSlug) {
+    const current = joinStatuses[orgId];
+    if (current === 'active') { navigate(`/orgs/${orgSlug}`); return; }
+    if (current === 'requested') return;
+    const { error } = await supabase.from('memberships').insert({
+      org_id: orgId, user_id: user.id, role: 'member', status: 'requested',
+    });
+    if (!error) setJoinStatuses(s => ({ ...s, [orgId]: 'requested' }));
+    else if (error.code === '23505') {
+      const { data } = await supabase.from('memberships').select('status')
+        .eq('org_id', orgId).eq('user_id', user.id).maybeSingle();
+      setJoinStatuses(s => ({ ...s, [orgId]: data?.status ?? 'requested' }));
+    }
+  }
+
   const adminOrgs = memberships.filter(m => m.role === 'owner' || m.role === 'admin');
   const memberOrgs = memberships.filter(m => m.role === 'member');
 
@@ -133,6 +174,7 @@ export default function Home() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
             <TabBtn active={tab === 'orgs'} onClick={() => setTab('orgs')}>Organizations</TabBtn>
+            <TabBtn active={tab === 'discover'} onClick={() => setTab('discover')}>Discover</TabBtn>
             <TabBtn active={tab === 'notifs'} onClick={() => setTab('notifs')}>
               Notifications
               {notifCount > 0 && (
@@ -153,6 +195,16 @@ export default function Home() {
               {memberOrgs.length > 0 && <OrgSection title="Member" orgs={memberOrgs} />}
             </div>
           )
+        ) : tab === 'discover' ? (
+          <DiscoverTab
+            query={discoverQuery}
+            onQuery={setDiscoverQuery}
+            orgs={publicOrgs}
+            loading={discoverLoading}
+            joinStatuses={joinStatuses}
+            onAction={handleDiscover}
+            myOrgIds={new Set(memberships.map(m => m.organizations.id))}
+          />
         ) : (
           notifLoading ? <Skeleton /> : notifications.length === 0 ? (
             <div className="card px-8 py-14 text-center text-slate-400 text-sm">You're all caught up.</div>
@@ -283,6 +335,75 @@ function NotificationItem({ notif, onAcceptInvite, onDeclineInvite, onAcceptFrie
   }
 
   return null;
+}
+
+function DiscoverTab({ query, onQuery, orgs, loading, joinStatuses, onAction, myOrgIds }) {
+  const filtered = orgs.filter(o =>
+    o.name.toLowerCase().includes(query.toLowerCase()) ||
+    o.slug.toLowerCase().includes(query.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-4">
+      <div className="relative">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="text"
+          value={query}
+          onChange={e => onQuery(e.target.value)}
+          placeholder="Search public organizations…"
+          className="input pl-9 w-full"
+        />
+      </div>
+
+      {loading ? <Skeleton /> : filtered.length === 0 ? (
+        <div className="card px-8 py-14 text-center text-slate-400 text-sm">
+          {query ? `No organizations match "${query}".` : 'No public organizations yet.'}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(org => {
+            const color = org.branding?.primaryColor ?? '#4f46e5';
+            const status = joinStatuses[org.id];
+            const isMember = status === 'active' || myOrgIds.has(org.id);
+            const isPending = status === 'requested';
+
+            return (
+              <div key={org.id} className="card flex items-center gap-4 px-5 py-4">
+                <div className="w-11 h-11 rounded-xl shrink-0 flex items-center justify-center text-white font-bold text-base" style={{ backgroundColor: color }}>
+                  {org.branding?.logoUrl
+                    ? <img src={org.branding.logoUrl} alt="" className="w-full h-full object-cover rounded-xl" />
+                    : org.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-slate-900 truncate">{org.name}</p>
+                  {org.branding?.tagline && (
+                    <p className="text-xs text-slate-400 truncate">{org.branding.tagline}</p>
+                  )}
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <Link to={`/club/${org.slug}`} className="text-xs text-slate-400 hover:text-indigo-600 transition-colors">
+                    View page
+                  </Link>
+                  {isMember ? (
+                    <Link to={`/orgs/${org.slug}`} className="btn-primary py-1.5 px-3 text-xs">Open</Link>
+                  ) : isPending ? (
+                    <span className="text-xs font-medium px-3 py-1.5 rounded-lg bg-slate-100 text-slate-400">Pending…</span>
+                  ) : (
+                    <button onClick={() => onAction(org.id, org.slug)} className="btn-primary py-1.5 px-3 text-xs">
+                      Request to join
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function Avatar({ name, url, size = 'md' }) {

@@ -146,6 +146,9 @@ export default function DashboardHome() {
           </div>
         </section>
       )}
+
+      {/* Contact */}
+      <ContactSection contact={b.contact} orgName={org?.name} isAdmin={isAdmin} slug={slug} />
     </div>
   );
 }
@@ -258,6 +261,90 @@ function LeaderCard({ member }) {
         )}
       </div>
     </div>
+  );
+}
+
+// ── Contact section ──────────────────────────────────────────────────────────
+
+export function ContactSection({ contact, orgName, isAdmin, slug }) {
+  const c = contact ?? {};
+  const hasAny = c.email || c.phone || c.address || c.meetingTime || c.officeHours;
+
+  if (!hasAny) {
+    if (!isAdmin) return null;
+    return (
+      <section className="card p-6 border-dashed text-center space-y-2">
+        <p className="text-sm text-slate-400">No contact info added yet.</p>
+        <a href={`/orgs/${slug}/settings`} className="text-sm text-indigo-600 hover:underline">
+          Add contact info in Settings →
+        </a>
+      </section>
+    );
+  }
+
+  const items = [
+    { icon: 'email',    label: 'Email',          value: c.email,       href: c.email ? `mailto:${c.email}` : null },
+    { icon: 'phone',    label: 'Phone',          value: c.phone,       href: c.phone ? `tel:${c.phone}` : null },
+    { icon: 'location', label: 'Location',       value: c.address,     href: null },
+    { icon: 'clock',    label: 'Meeting Time',   value: c.meetingTime, href: null },
+    { icon: 'hours',    label: 'Office Hours',   value: c.officeHours, href: null },
+  ].filter(i => i.value);
+
+  return (
+    <section className="card p-6 space-y-5">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-slate-900">Contact</h2>
+        {isAdmin && (
+          <a href={`/orgs/${slug}/settings`} className="text-xs text-indigo-600 hover:underline">Edit</a>
+        )}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {items.map(({ icon, label, value, href }) => (
+          <div key={label} className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+              <ContactIcon type={icon} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">{label}</p>
+              {href ? (
+                <a href={href} className="text-sm font-medium text-indigo-600 hover:underline break-all">{value}</a>
+              ) : (
+                <p className="text-sm font-medium text-slate-800">{value}</p>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function ContactIcon({ type }) {
+  const cls = 'w-4 h-4 text-indigo-600';
+  if (type === 'email') return (
+    <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+    </svg>
+  );
+  if (type === 'phone') return (
+    <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+    </svg>
+  );
+  if (type === 'location') return (
+    <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+    </svg>
+  );
+  if (type === 'clock') return (
+    <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+    </svg>
+  );
+  return (
+    <svg className={cls} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
   );
 }
 

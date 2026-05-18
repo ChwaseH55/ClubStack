@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { ContactSection } from '../components/dashboard/DashboardHome';
 
 function parseIgEmbed(rawUrl) {
   const m = rawUrl?.match(/instagram\.com\/(p|reel|tv)\/([A-Za-z0-9_-]+)/);
@@ -225,6 +226,13 @@ export default function PublicOrgPage() {
             </div>
           </section>
         </>
+      )}
+
+      {/* ── Contact ──────────────────────────────────────────────────── */}
+      {b?.contact && Object.values(b.contact).some(Boolean) && (
+        <section className="py-12 px-8 max-w-5xl mx-auto w-full">
+          <ContactSection contact={b.contact} orgName={org.name} />
+        </section>
       )}
 
       {/* ── Join CTA ─────────────────────────────────────────────────── */}

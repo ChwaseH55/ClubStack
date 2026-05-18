@@ -61,11 +61,17 @@ export default function OrgSettings() {
 
 function BrandingTab({ org, addToast, userId }) {
   const b = org?.branding ?? {};
+  const c = b.contact ?? {};
   const [isPublic,       setIsPublic]       = useState(org?.is_public   ?? false);
   const [color,          setColor]          = useState(b.primaryColor   ?? '#4f46e5');
   const [secondaryColor, setSecondaryColor] = useState(b.secondaryColor ?? '#6366f1');
   const [tagline, setTagline] = useState(b.tagline ?? '');
   const [about,   setAbout]   = useState(b.about ?? '');
+  const [contactEmail,   setContactEmail]   = useState(c.email       ?? '');
+  const [contactPhone,   setContactPhone]   = useState(c.phone       ?? '');
+  const [contactAddress, setContactAddress] = useState(c.address     ?? '');
+  const [meetingTime,    setMeetingTime]    = useState(c.meetingTime ?? '');
+  const [officeHours,    setOfficeHours]    = useState(c.officeHours ?? '');
   const [logoUrl,   setLogoUrl]   = useState(b.logoUrl ?? null);
   const [bannerUrl, setBannerUrl] = useState(b.bannerUrl ?? null);
   const [saving,          setSaving]          = useState(false);
@@ -116,9 +122,16 @@ function BrandingTab({ org, addToast, userId }) {
 
   async function handleSave() {
     setSaving(true);
+    const contact = {
+      email:       contactEmail.trim()   || null,
+      phone:       contactPhone.trim()   || null,
+      address:     contactAddress.trim() || null,
+      meetingTime: meetingTime.trim()    || null,
+      officeHours: officeHours.trim()    || null,
+    };
     const { error } = await supabase
       .from('organizations')
-      .update({ is_public: isPublic, branding: { ...org.branding, primaryColor: color, secondaryColor, tagline, about, logoUrl, bannerUrl } })
+      .update({ is_public: isPublic, branding: { ...org.branding, primaryColor: color, secondaryColor, tagline, about, logoUrl, bannerUrl, contact } })
       .eq('id', org.id);
     setSaving(false);
     if (error) { addToast(error.message, 'error'); return; }
@@ -254,6 +267,41 @@ function BrandingTab({ org, addToast, userId }) {
         >
           <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${isPublic ? 'translate-x-5' : ''}`} />
         </button>
+      </div>
+
+      {/* Contact */}
+      <div className="card p-6 space-y-4">
+        <div>
+          <h2 className="font-semibold text-slate-800">Contact</h2>
+          <p className="text-sm text-slate-400 mt-0.5">Shown at the bottom of your org homepage.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Email</label>
+            <input type="email" value={contactEmail} onChange={e => setContactEmail(e.target.value)}
+              placeholder="contact@yourclub.org" className="input" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Phone</label>
+            <input type="text" value={contactPhone} onChange={e => setContactPhone(e.target.value)}
+              placeholder="(407) 555-0100" className="input" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Address / Location</label>
+            <input type="text" value={contactAddress} onChange={e => setContactAddress(e.target.value)}
+              placeholder="Student Union Rm 214" className="input" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Meeting Time</label>
+            <input type="text" value={meetingTime} onChange={e => setMeetingTime(e.target.value)}
+              placeholder="Every Tuesday at 7 PM" className="input" />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-xs font-medium text-slate-500 uppercase tracking-wide">Office Hours</label>
+            <input type="text" value={officeHours} onChange={e => setOfficeHours(e.target.value)}
+              placeholder="Mon – Fri, 10 AM – 4 PM" className="input" />
+          </div>
+        </div>
       </div>
 
       <button onClick={handleSave} disabled={saving} className="btn-primary">

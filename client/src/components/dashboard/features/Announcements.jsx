@@ -25,7 +25,7 @@ function AnnouncementsList() {
     if (!org) return;
     supabase
       .from('announcements')
-      .select('id, title, body, created_at, profiles!author_id(name, avatar_url)')
+      .select('id, title, body, created_at, event_id, profiles!author_id(name, avatar_url)')
       .eq('org_id', org.id)
       .order('created_at', { ascending: false })
       .then(({ data }) => { setPosts(data ?? []); setLoading(false); });
@@ -60,6 +60,7 @@ function AnnouncementsList() {
 }
 
 function AnnouncementCard({ post }) {
+  const { slug } = useParams();
   const preview = post.body?.length > 160 ? post.body.slice(0, 160).trimEnd() + '…' : post.body;
   return (
     <Link
@@ -68,7 +69,17 @@ function AnnouncementCard({ post }) {
     >
       <div className="flex items-start justify-between gap-4">
         <h2 className="font-semibold text-slate-900 group-hover:text-indigo-600 transition-colors">{post.title}</h2>
-        <span className="text-xs text-slate-400 shrink-0 mt-0.5">{formatDate(post.created_at)}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          {post.event_id && (
+            <span className="flex items-center gap-1 text-xs font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Event
+            </span>
+          )}
+          <span className="text-xs text-slate-400 mt-0.5">{formatDate(post.created_at)}</span>
+        </div>
       </div>
       <p className="text-sm text-slate-500 leading-relaxed">{preview}</p>
       <p className="text-xs text-slate-400">by {post.profiles?.name ?? 'Unknown'}</p>
@@ -78,21 +89,30 @@ function AnnouncementCard({ post }) {
 
 function AnnouncementDetail() {
   const { id } = useParams();
+  const { slug } = useParams();
   const { org, isAdmin } = useOrg();
   const { user } = useAuth();
   const { addToast } = useToast();
   const navigate = useNavigate();
   const [post, setPost] = useState(null);
+  const [event, setEvent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     supabase
       .from('announcements')
-      .select('id, title, body, created_at, updated_at, author_id, profiles!author_id(name, avatar_url)')
+      .select('id, title, body, created_at, updated_at, author_id, event_id, profiles!author_id(name, avatar_url)')
       .eq('id', id)
       .single()
-      .then(({ data }) => { setPost(data); setLoading(false); });
+      .then(({ data }) => {
+        setPost(data);
+        setLoading(false);
+        if (data?.event_id) {
+          supabase.from('events').select('id, title, start_at').eq('id', data.event_id).single()
+            .then(({ data: ev }) => setEvent(ev));
+        }
+      });
   }, [id]);
 
   const handleDelete = async () => {
@@ -128,6 +148,27 @@ function AnnouncementDetail() {
           </div>
         </div>
 
+        {event && (
+          <Link
+            to={`/orgs/${org?.slug}/events/${event.id}`}
+            className="flex items-center gap-3 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-xl hover:bg-indigo-100 transition-colors group"
+          >
+            <div className="w-9 h-9 rounded-lg bg-indigo-600 flex items-center justify-center shrink-0">
+              <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-indigo-500 uppercase tracking-wide">Linked Event</p>
+              <p className="font-semibold text-indigo-900 truncate group-hover:underline">{event.title}</p>
+              {event.start_at && <p className="text-xs text-indigo-600">{formatDate(event.start_at)}</p>}
+            </div>
+            <svg className="w-4 h-4 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        )}
+
         <hr className="border-slate-100" />
 
         <p className="text-slate-700 leading-relaxed whitespace-pre-wrap">{post.body}</p>
@@ -159,18 +200,27 @@ function AnnouncementForm() {
 
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
+  const [eventId, setEventId] = useState('');
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!org) return;
+    supabase.from('events').select('id, title, start_at').eq('org_id', org.id)
+      .order('start_at', { ascending: false })
+      .then(({ data }) => setEvents(data ?? []));
+  }, [org]);
 
   useEffect(() => {
     if (!isEdit) return;
     supabase
       .from('announcements')
-      .select('title, body')
+      .select('title, body, event_id')
       .eq('id', id)
       .single()
       .then(({ data }) => {
-        if (data) { setTitle(data.title); setBody(data.body); }
+        if (data) { setTitle(data.title); setBody(data.body); setEventId(data.event_id ?? ''); }
         setLoading(false);
       });
   }, [id, isEdit]);
@@ -180,10 +230,16 @@ function AnnouncementForm() {
     if (!title.trim() || !body.trim()) return;
     setSaving(true);
 
+    const payload = {
+      title: title.trim(),
+      body: body.trim(),
+      event_id: eventId || null,
+    };
+
     if (isEdit) {
       const { error } = await supabase
         .from('announcements')
-        .update({ title: title.trim(), body: body.trim(), updated_at: new Date().toISOString() })
+        .update({ ...payload, updated_at: new Date().toISOString() })
         .eq('id', id);
       if (error) { addToast(error.message, 'error'); setSaving(false); return; }
       addToast('Announcement updated.', 'success');
@@ -191,7 +247,7 @@ function AnnouncementForm() {
     } else {
       const { error } = await supabase
         .from('announcements')
-        .insert({ org_id: org.id, author_id: user.id, title: title.trim(), body: body.trim() });
+        .insert({ org_id: org.id, author_id: user.id, ...payload });
       if (error) { addToast(error.message, 'error'); setSaving(false); return; }
       addToast('Announcement posted.', 'success');
       navigate('..', { relative: 'path' });
@@ -231,6 +287,19 @@ function AnnouncementForm() {
               placeholder="Write your announcement…"
               className="input resize-none leading-relaxed"
             />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-slate-700">
+              Link to event <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
+            <select value={eventId} onChange={e => setEventId(e.target.value)} className="input">
+              <option value="">No event linked</option>
+              {events.map(ev => (
+                <option key={ev.id} value={ev.id}>
+                  {ev.title}{ev.start_at ? ` — ${formatDate(ev.start_at)}` : ''}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={saving} className="btn-primary">

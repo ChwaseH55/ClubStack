@@ -512,7 +512,8 @@ function EventForm() {
         await supabase.from('announcements').insert({
           org_id: org.id, author_id: user.id,
           title: title.trim(),
-          body: `📅 ${formatDate(start_at)}${end_at ? ` – ${formatDate(end_at)}` : ''}\n\n${description.trim()}`,
+          body: `${formatDate(start_at)}${end_at ? ` – ${formatDate(end_at)}` : ''}${description.trim() ? `\n\n${description.trim()}` : ''}`,
+          event_id: eventId,
         });
       }
     }

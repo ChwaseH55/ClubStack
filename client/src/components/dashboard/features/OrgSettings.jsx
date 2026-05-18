@@ -25,6 +25,7 @@ export default function OrgSettings() {
     { key: 'social',      label: 'Social & Posts' },
     { key: 'leadership',  label: 'Leadership' },
     { key: 'members',     label: 'Members' },
+    { key: 'features',    label: 'Features' },
   ];
 
   return (
@@ -51,6 +52,7 @@ export default function OrgSettings() {
       {tab === 'social'     && <SocialTab     org={org} addToast={addToast} />}
       {tab === 'leadership' && <LeadershipTab org={org} addToast={addToast} />}
       {tab === 'members'    && <MembersTab    org={org} addToast={addToast} />}
+      {tab === 'features'   && <FeaturesTab   org={org} addToast={addToast} />}
     </div>
   );
 }
@@ -573,6 +575,131 @@ function MembersTab({ org, addToast }) {
           </div>
         ))
       )}
+    </div>
+  );
+}
+
+// ── Features Tab ─────────────────────────────────────────────────────────────
+
+const ALL_FEATURES = [
+  {
+    key: 'announcements',
+    label: 'Announcements',
+    description: 'Post updates, news, and notices to all members.',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'events',
+    label: 'Events',
+    description: 'Calendar, RSVPs, event comments, and polls.',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'forum',
+    label: 'Forum',
+    description: 'Discussion threads and replies for the whole org.',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'chat',
+    label: 'Chat',
+    description: 'Real-time messaging rooms for members.',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+      </svg>
+    ),
+  },
+  {
+    key: 'shop',
+    label: 'Shop & Dues',
+    description: 'Sell merchandise and collect membership dues.',
+    icon: (
+      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+      </svg>
+    ),
+  },
+];
+
+function FeaturesTab({ org, addToast }) {
+  const [enabled, setEnabled] = useState(org?.enabled_features ?? []);
+  const [saving, setSaving] = useState(false);
+
+  const toggle = key => {
+    setEnabled(prev =>
+      prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key]
+    );
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from('organizations')
+      .update({ enabled_features: enabled })
+      .eq('id', org.id);
+    setSaving(false);
+    if (error) { addToast(error.message, 'error'); return; }
+    addToast('Features updated. Reload to see sidebar changes.', 'success');
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="card p-5 space-y-1">
+        <h2 className="font-semibold text-slate-800">Feature Toggles</h2>
+        <p className="text-sm text-slate-400">
+          Enable or disable features for your organization. Disabled features are hidden from all members.
+        </p>
+      </div>
+
+      <div className="card divide-y divide-slate-100">
+        {ALL_FEATURES.map(f => {
+          const isEnabled = enabled.includes(f.key);
+          return (
+            <div key={f.key} className="flex items-center gap-4 px-5 py-4">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                isEnabled ? 'bg-indigo-50 text-indigo-600' : 'bg-slate-100 text-slate-400'
+              }`}>
+                {f.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className={`font-medium text-sm ${isEnabled ? 'text-slate-900' : 'text-slate-400'}`}>{f.label}</p>
+                <p className="text-xs text-slate-400 mt-0.5">{f.description}</p>
+              </div>
+              <button
+                onClick={() => toggle(f.key)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors shrink-0 ${
+                  isEnabled ? 'bg-indigo-600' : 'bg-slate-200'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    isEnabled ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex justify-end">
+        <button onClick={handleSave} disabled={saving} className="btn-primary">
+          {saving ? 'Saving…' : 'Save changes'}
+        </button>
+      </div>
     </div>
   );
 }

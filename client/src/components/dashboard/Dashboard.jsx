@@ -10,6 +10,8 @@ import Announcements from './features/Announcements';
 import Events from './features/Events';
 import Forum from './features/Forum';
 import Chat from './features/Chat';
+import Members from './features/Members';
+import Analytics from './features/Analytics';
 import OrgSettings from './features/OrgSettings';
 import ComingSoon from './features/ComingSoon';
 
@@ -44,6 +46,8 @@ export default function Dashboard() {
             <Route path="forum/*" element={<Forum />} />
             <Route path="chat/*" element={<Chat />} />
             <Route path="shop/*" element={<ComingSoon feature="Shop & Dues" />} />
+            <Route path="members/*" element={<Members />} />
+            <Route path="analytics/*" element={<Analytics />} />
             <Route path="settings/*" element={<OrgSettings />} />
           </Routes>
         </main>

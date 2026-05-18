@@ -10,6 +10,7 @@ import CreateOrg from './pages/CreateOrg';
 import Landing from './pages/Landing';
 import Profile from './pages/Profile';
 import PublicOrgPage from './pages/PublicOrgPage';
+import JoinViaInvite from './pages/JoinViaInvite';
 
 function PrivateRoute({ children }) {
   const { user } = useAuth();
@@ -43,6 +44,7 @@ export default function App() {
             }
           />
           <Route path="/club/:slug" element={<PublicOrgPage />} />
+          <Route path="/join/:token" element={<JoinViaInvite />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ToastProvider>

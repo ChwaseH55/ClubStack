@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Avatar } from '../../pages/Home';
+import NotificationBell from './NotificationBell';
 
 export default function TopBar({ org, profile }) {
   return (
@@ -17,10 +18,13 @@ export default function TopBar({ org, profile }) {
         <span className="text-slate-200 select-none">|</span>
         <span className="font-semibold text-slate-800 text-sm">{org?.name}</span>
       </div>
-      <Link to="/profile" className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">
-        <Avatar name={profile?.name ?? '?'} url={profile?.avatar_url} size="sm" />
-        <span className="text-sm text-slate-600 hidden sm:block">{profile?.name}</span>
-      </Link>
+      <div className="flex items-center gap-2">
+        <NotificationBell />
+        <Link to="/profile" className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors">
+          <Avatar name={profile?.name ?? '?'} url={profile?.avatar_url} size="sm" />
+          <span className="text-sm text-slate-600 hidden sm:block">{profile?.name}</span>
+        </Link>
+      </div>
     </header>
   );
 }

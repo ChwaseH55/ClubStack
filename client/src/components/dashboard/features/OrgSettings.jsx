@@ -517,18 +517,25 @@ function MemberCard({ m, onUpdate, onSave }) {
 // ── Members Tab ───────────────────────────────────────────────────────────────
 
 function MembersTab({ org, addToast }) {
+  const { user } = useAuth();
   const [requests, setRequests] = useState([]);
+  const [invites, setInvites]   = useState([]);
   const [loading,  setLoading]  = useState(true);
+  const [creating, setCreating] = useState(false);
+  const [copied, setCopied]     = useState(null);
 
   useEffect(() => {
     if (!org) return;
-    supabase
-      .from('memberships')
-      .select('id, created_at, profiles!user_id(id, name, avatar_url)')
-      .eq('org_id', org.id)
-      .eq('status', 'requested')
-      .order('created_at')
-      .then(({ data }) => { setRequests(data ?? []); setLoading(false); });
+    Promise.all([
+      supabase.from('memberships').select('id, created_at, profiles!user_id(id, name, avatar_url)')
+        .eq('org_id', org.id).eq('status', 'requested').order('created_at'),
+      supabase.from('invite_links').select('id, token, created_at, expires_at, max_uses, uses_count, active')
+        .eq('org_id', org.id).order('created_at', { ascending: false }),
+    ]).then(([reqRes, invRes]) => {
+      setRequests(reqRes.data ?? []);
+      setInvites(invRes.data ?? []);
+      setLoading(false);
+    });
   }, [org]);
 
   async function approve(id) {
@@ -545,36 +552,103 @@ function MembersTab({ org, addToast }) {
     addToast('Request declined.', 'info');
   }
 
+  async function createInvite() {
+    setCreating(true);
+    const { data, error } = await supabase.from('invite_links')
+      .insert({ org_id: org.id, created_by: user.id })
+      .select('id, token, created_at, expires_at, max_uses, uses_count, active')
+      .single();
+    setCreating(false);
+    if (error) { addToast(error.message, 'error'); return; }
+    setInvites(prev => [data, ...prev]);
+  }
+
+  async function revokeInvite(id) {
+    await supabase.from('invite_links').update({ active: false }).eq('id', id);
+    setInvites(prev => prev.map(i => i.id === id ? { ...i, active: false } : i));
+  }
+
+  function copyLink(token) {
+    const url = `${window.location.origin}/join/${token}`;
+    navigator.clipboard.writeText(url);
+    setCopied(token);
+    setTimeout(() => setCopied(null), 2000);
+  }
+
   if (loading) return <div className="text-slate-400 text-sm py-4">Loading…</div>;
 
   return (
-    <div className="space-y-4">
-      <div className="card p-5 space-y-1">
-        <h2 className="font-semibold text-slate-800">Join Requests</h2>
-        <p className="text-sm text-slate-400">
-          People who requested to join via your public org page.
-        </p>
+    <div className="space-y-6">
+      {/* Invite Links */}
+      <div className="space-y-3">
+        <div className="card p-5 space-y-1">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-slate-800">Invite Links</h2>
+              <p className="text-sm text-slate-400 mt-0.5">Share a link to let people join instantly — no approval needed.</p>
+            </div>
+            <button onClick={createInvite} disabled={creating} className="btn-primary py-1.5 px-3 text-sm shrink-0">
+              {creating ? '…' : '+ New Link'}
+            </button>
+          </div>
+        </div>
+
+        {invites.filter(i => i.active).length === 0 ? (
+          <div className="card px-8 py-8 text-center text-slate-400 text-sm">
+            No active invite links. Create one above.
+          </div>
+        ) : (
+          invites.filter(i => i.active).map(inv => (
+            <div key={inv.id} className="card px-5 py-3.5 flex items-center gap-3">
+              <code className="flex-1 text-xs text-slate-500 truncate font-mono bg-slate-50 px-2 py-1.5 rounded-lg">
+                {window.location.origin}/join/{inv.token}
+              </code>
+              <span className="text-xs text-slate-400 shrink-0">{inv.uses_count} use{inv.uses_count !== 1 ? 's' : ''}</span>
+              <button
+                onClick={() => copyLink(inv.token)}
+                className={`shrink-0 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors ${
+                  copied === inv.token
+                    ? 'bg-green-50 text-green-600'
+                    : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100'
+                }`}
+              >
+                {copied === inv.token ? '✓ Copied' : 'Copy'}
+              </button>
+              <button onClick={() => revokeInvite(inv.id)} className="text-slate-400 hover:text-red-500 transition-colors shrink-0 text-xs">
+                Revoke
+              </button>
+            </div>
+          ))
+        )}
       </div>
 
-      {requests.length === 0 ? (
-        <div className="card px-8 py-14 text-center text-slate-400 text-sm">
-          No pending join requests.
+      {/* Join Requests */}
+      <div className="space-y-3">
+        <div className="card p-5 space-y-1">
+          <h2 className="font-semibold text-slate-800">Join Requests</h2>
+          <p className="text-sm text-slate-400">People who requested to join via your public org page.</p>
         </div>
-      ) : (
-        requests.map(r => (
-          <div key={r.id} className="card px-5 py-4 flex items-center gap-4">
-            <Avatar name={r.profiles?.name ?? '?'} url={r.profiles?.avatar_url} />
-            <div className="flex-1 min-w-0">
-              <p className="font-medium text-slate-900">{r.profiles?.name ?? 'Unknown'}</p>
-              <p className="text-xs text-slate-400">Requested {new Date(r.created_at).toLocaleDateString()}</p>
-            </div>
-            <div className="flex gap-2 shrink-0">
-              <button onClick={() => approve(r.id)} className="btn-primary py-1.5 px-3 text-xs">Approve</button>
-              <button onClick={() => decline(r.id)} className="btn-secondary py-1.5 px-3 text-xs">Decline</button>
-            </div>
+
+        {requests.length === 0 ? (
+          <div className="card px-8 py-8 text-center text-slate-400 text-sm">
+            No pending join requests.
           </div>
-        ))
-      )}
+        ) : (
+          requests.map(r => (
+            <div key={r.id} className="card px-5 py-4 flex items-center gap-4">
+              <Avatar name={r.profiles?.name ?? '?'} url={r.profiles?.avatar_url} />
+              <div className="flex-1 min-w-0">
+                <p className="font-medium text-slate-900">{r.profiles?.name ?? 'Unknown'}</p>
+                <p className="text-xs text-slate-400">Requested {new Date(r.created_at).toLocaleDateString()}</p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <button onClick={() => approve(r.id)} className="btn-primary py-1.5 px-3 text-xs">Approve</button>
+                <button onClick={() => decline(r.id)} className="btn-secondary py-1.5 px-3 text-xs">Decline</button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 }
